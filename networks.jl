@@ -83,16 +83,16 @@ function simulate(N, T = 10)
     Φ(x) = (1 - exp(-x^2)) ## Identity function to test activation
     α = 1.0 ## activation scale
     K = 5.0
-    polynomialDegree = 3
+    polynomialDegree = 1
     μ = 0.1 ## per capita chance of mutation
-    μ_trait = 0.1 ## chance that a given weight in the network changes
-    μ_size = 0.01
+    μ_trait = 0.2 ## chance that a given weight in the network changes
+    μ_size = 0.1
     NetSize = 3
 
 
     population = []
     for i in 1:N
-        push!(population, [rand(Float64, (NetSize, NetSize)), rand(Float64, NetSize)])
+        push!(population, [rand(BigFloat, (NetSize, NetSize)), rand(BigFloat, NetSize)])
     end
     meanFitness = zeros(Float64, T)
     
@@ -114,16 +114,26 @@ function timestep(population, activation_function, activation_scale, K, polynomi
     for i in 1:N
         fitnessScores[i] = fitness(activation_function, activation_scale, K, polynomialDegree, population[i])
     end
-
+    rawFitnessScores = copy(fitnessScores)
     ## normalizing the fitness scores
     for i in 1:N
         fitnessScores[i] = fitnessScores[i]/maximum(fitnessScores)
     end
-    # print(mean(fitnessScores), "\n")
+    # print("Mean per capita fitness: ", mean(fitnessScores), "\n")
+    # print("Total fitness of all individuals: ", sum(fitnessScores), "\n")
     ## Reproduce based on relative fitness
 
-    reproductionIndex = sample(1:N, ProbabilityWeights(fitnessScores), N, replace = true)
 
+    ## Code for simulating reproduction
+    ## Should weight selection based on relative fitness
+    
+    reproductionIndex = collect(1:N)
+    for i in 1:N
+        reproductionIndex[i] = wsample(collect(1:N), fitnessScores)
+    end
+
+    # reproductionIndex = sample(1:N, ProbabilityWeights(fitnessScores), N, replace = true)
+    # reproductionIndex = sample(1:N, N, replace = true)
     newPop = fill([fill(0.0, NetSize, NetSize), fill(0.0, NetSize)], N)
     for i in 1:N
         newPop[i] = population[reproductionIndex[i]]
@@ -138,7 +148,7 @@ function timestep(population, activation_function, activation_scale, K, polynomi
     end
 
     ## update the population
-    return [population, fitnessScores]
+    return [newPop, rawFitnessScores]
 end
 
 ## To do:

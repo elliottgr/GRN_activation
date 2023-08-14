@@ -78,15 +78,17 @@ function fitness(activation_function, activation_scale, K, polynomialDegree, net
 end
 
 
-# ## Testing
+# ## Testing network code
+# ## This generates a 2 node network with no weights and calculates 
+# ## the resulting fitness to double check implementation of all
+# ## network code + the fitness function
+
 # W_m = fill(0.0, (2,2))
 # W_b = [0.0, 0.0]
 # Φ(x) = (1 - exp(-x^2))
 # K = 5.0
 # Var_F = var(collect([Pl(i, 1) for i in -1:0.02:1]))
-
-# testFitness = exp( (-K * (2.6645352591003757e-15)^2) / (100* Var_F) )
-
+# testFitness = exp( (-K * (-101.0)^2) / (100* Var_F) ) ## Explicitly calculating the fitness without measuring the networks :)
 
 # iterateNetwork(Φ, 1.0, 1, [W_m, W_b], LayerOutputs) ## returns expected value (0) for a zero network
 # measureNetwork(Φ, 1.0, 1, [W_m, W_b]) ## returns the expected value (-101.0) for a zero network measured against the null polynomial
@@ -165,7 +167,7 @@ function timestep(population, activation_function, activation_scale, K, polynomi
     for i in 1:N
         reproductionIndex[i] = wsample(collect(1:N), fitnessScores)
     end
-
+    pr
     # reproductionIndex = sample(1:N, ProbabilityWeights(fitnessScores), N, replace = true)
     # reproductionIndex = sample(1:N, N, replace = true)
     newPop = fill([fill(0.0, NetSize, NetSize), fill(0.0, NetSize)], N)

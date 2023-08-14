@@ -11,7 +11,7 @@ function calcOj(activation_function::Function, activation_scale::Float64, j::Int
     ## doing it this way allows scalar indexing of the static arrays, which is significantly faster and avoids unnecessary array invocation
     x = 0
     for i in 1:j-1
-        x += (Wm[i, j] * prev_out[i]) 
+        x += (Wm[i, j] * prev_out[i])  
     end
     x += Wb[j]
     return(activation_function(activation_scale * x)) 

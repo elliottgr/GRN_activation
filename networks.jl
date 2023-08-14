@@ -1,7 +1,7 @@
 ## Builds the networks from scratch using code from the social FFN project
 ## arranges them into populations, and assesses their evolution
 
-using LegendrePolynomials, Statistics, Random, Distributions, StatsBase
+using LegendrePolynomials, Plots, Statistics, Random, Distributions, StatsBase
 
 function calcOj(activation_function::Function, activation_scale::Float64, j::Int, prev_out, Wm, Wb)
     ##############################
@@ -51,24 +51,52 @@ function measureNetwork(activation_function, activation_scale, polynomialDegree,
     x = 0
     for i in -1:0.02:1
         LayerOutputs = zeros(Float64, size(network[2])) ## size of the bias vector
+        # print((last(iterateNetwork(activation_function, activation_scale, i, network, LayerOutputs)) - Pl(i, polynomialDegree) ))
         x += (last(iterateNetwork(activation_function, activation_scale, i, network, LayerOutputs)) - Pl(i, polynomialDegree))
     end
     return x
 end
 
+## Testing
+# W_m = fill(0.0, 2, 2)
+# W_m = [0 0   
+#        0 0]
+# W_b = [0.0, 0.0]
+# LayerOutputs = fill(0.0, 2)
+# Φ(x) = (1 - exp(-x^2))
+
+# iterateNetwork(Φ, 1.0, 0, [W_m, W_b], LayerOutputs) ## returns expected value (0) for a zero network
+# measureNetwork(Φ, 1.0, 0, [W_m, W_b]) ## returns the expected value (-101.0) for a zero network measured against the null polynomial
+# Pl(0, 0)
 ## Defining the fitness function
 
 function fitness(activation_function, activation_scale, K, polynomialDegree, network)
     Wm, Wb = network
-    Var_F = var([Pl(i, polynomialDegree) for i in -1:0.02:1])
+    Var_F = var(collect([Pl(i, polynomialDegree) for i in -1:0.02:1]))
     return exp((-K * (measureNetwork(activation_function, activation_scale, polynomialDegree, network))^2) / (100*Var_F))
 
 end
 
 
+# ## Testing
+# W_m = fill(0.0, (2,2))
+# W_b = [0.0, 0.0]
+# Φ(x) = (1 - exp(-x^2))
+# K = 5.0
+# Var_F = var(collect([Pl(i, 1) for i in -1:0.02:1]))
+
+# testFitness = exp( (-K * (2.6645352591003757e-15)^2) / (100* Var_F) )
+
+
+# iterateNetwork(Φ, 1.0, 1, [W_m, W_b], LayerOutputs) ## returns expected value (0) for a zero network
+# measureNetwork(Φ, 1.0, 1, [W_m, W_b]) ## returns the expected value (-101.0) for a zero network measured against the null polynomial
+# fitness(Φ, 1.0, K, 1, [W_m, W_b])
+
+## Checking the fitness function
+
 
 ## Define population of N networks
-function simulate(N, T = 10)
+function simulate(N=10, T = 10, reps = 5)
     ## Capture 
     ## W_m = weight matrices for node connection weights
     ## W_b = weight vector for node biases
@@ -84,23 +112,29 @@ function simulate(N, T = 10)
     α = 1.0 ## activation scale
     K = 5.0
     polynomialDegree = 1
-    μ = 0.1 ## per capita chance of mutation
+    μ = 0.01 ## per capita chance of mutation
     μ_trait = 0.2 ## chance that a given weight in the network changes
     μ_size = 0.1
-    NetSize = 3
-
-
-    population = []
-    for i in 1:N
-        push!(population, [rand(BigFloat, (NetSize, NetSize)), rand(BigFloat, NetSize)])
-    end
-    meanFitness = zeros(Float64, T)
+    NetSize = 2
+    parentNetwork = [rand(Float64, (NetSize, NetSize)), rand(Float64, NetSize)]
     
-    for t in 1:T
-        population, fitnessScores = timestep(population, Φ, α, K, polynomialDegree, μ, μ_trait, μ_size)
-        meanFitness[t] = mean(fitnessScores)
+    ##Iterating over all replicates
+    meanFitnessReps = fill([], reps)
+    for r in 1:reps
+    
+        population = []
+        for i in 1:N
+            push!(population, parentNetwork)
+        end
+        meanFitness = zeros(Float64, T)
+        
+        for t in 1:T
+            population, fitnessScores = timestep(population, Φ, α, K, polynomialDegree, μ, μ_trait, μ_size)
+            meanFitness[t] = mean(fitnessScores)
+        end
+        meanFitnessReps[r] = meanFitness
     end
-    return meanFitness
+    return meanFitnessReps
 end
 
 function timestep(population, activation_function, activation_scale, K, polynomialDegree, μ, μ_trait, μ_size)
@@ -116,9 +150,9 @@ function timestep(population, activation_function, activation_scale, K, polynomi
     end
     rawFitnessScores = copy(fitnessScores)
     ## normalizing the fitness scores
-    for i in 1:N
-        fitnessScores[i] = fitnessScores[i]/maximum(fitnessScores)
-    end
+    # for i in 1:N
+    #     fitnessScores[i] = fitnessScores[i]/maximum(fitnessScores)
+    # end
     # print("Mean per capita fitness: ", mean(fitnessScores), "\n")
     # print("Total fitness of all individuals: ", sum(fitnessScores), "\n")
     ## Reproduce based on relative fitness
@@ -140,16 +174,36 @@ function timestep(population, activation_function, activation_scale, K, polynomi
     end
 
     ## Mutate based on some parameters
+    
+    ## Le Nagard Method
+    ## samples a random weight and shifts it
     for i in 1:N
         if rand() <= μ
-            newPop[i][1] += rand(Binomial(1, μ_trait), (NetSize, NetSize)) .* rand(Normal(0, μ_size), (NetSize, NetSize))
-            newPop[i][2] += rand(Binomial(1, μ_trait), NetSize) .* rand(Normal(0, μ_size),NetSize)
+            weightID = sample(1:(NetSize^2 + NetSize))
+            if weightID <= NetSize^2
+                newPop[i][1][weightID] += randn()
+            else
+                newPop[i][2][weightID-(NetSize^2)] += randn()
+            end
         end
     end
+
+
+    ## Social Evolution / JVC Method
+    ## Each weight has a chance to mutate
+    # for i in 1:N
+    #     if rand() <= μ
+    #         newPop[i][1] += rand(Binomial(1, μ_trait), (NetSize, NetSize)) .* rand(Normal(0, μ_size), (NetSize, NetSize))
+    #         newPop[i][2] += rand(Binomial(1, μ_trait), NetSize) .* rand(Normal(0, μ_size),NetSize)
+    #     end
+    # end
 
     ## update the population
     return [newPop, rawFitnessScores]
 end
+
+plt = plot(1:50, simulate(10,50, 5))
+
 
 ## To do:
 

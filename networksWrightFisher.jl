@@ -2,7 +2,7 @@
 ## arranges them into populations, and assesses their evolution
 ## Based on the individual model from Le Nagard 2011 that uses Wright-Fisher dynamics
 
-include("networkFuncs.jl") ## loading formulas
+include("networksFuncs.jl") ## loading formulas
 
 
 ## Plots are for visualization
@@ -89,12 +89,13 @@ function timestep(population, activation_function, activation_scale, K, polynomi
     ## samples a random weight and shifts it
     for i in 1:N
         if rand() <= μ
-            weightID = sample(1:(NetSize^2 + NetSize))
-            if weightID <= NetSize^2
-                newPop[i][1][weightID] += randn()*μ_size
-            else
-                newPop[i][2][weightID-(NetSize^2)] += randn()*μ_size
-            end
+            newPop[i] = mutateNetwork(μ_size, copy(newPop[i]))
+            # weightID = sample(1:(NetSize^2 + NetSize))
+            # if weightID <= NetSize^2
+            #     newPop[i][1][weightID] += randn()*μ_size
+            # else
+            #     newPop[i][2][weightID-(NetSize^2)] += randn()*μ_size
+            # end
         end
     end
 
@@ -103,8 +104,7 @@ function timestep(population, activation_function, activation_scale, K, polynomi
     ## Each weight has a chance to mutate
     # for i in 1:N
     #     if rand() <= μ
-    #         newPop[i][1] += rand(Binomial(1, μ_trait), (NetSize, NetSize)) .* rand(Normal(0, μ_size), (NetSize, NetSize))
-    #         newPop[i][2] += rand(Binomial(1, μ_trait), NetSize) .* rand(Normal(0, μ_size),NetSize)
+
     #     end
     # end
 

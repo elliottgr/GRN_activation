@@ -59,7 +59,7 @@ function measureNetwork(activation_function, activation_scale, polynomialDegree,
     return x
 end
 
-## Testing
+# # Testing
 # W_m = fill(0.0, 2, 2)
 # W_m = [0 0   
 #        0 0]
@@ -79,6 +79,26 @@ function fitness(activation_function, activation_scale, K, polynomialDegree, net
 
 end
 
+function mutateNetwork(μ_size, network)
+
+    ## samples a random weight and shifts it
+    ## Le Nagard method
+
+    NetSize = size(network[2])[1]
+    weightID = sample(1:(NetSize^2 + NetSize))
+    newNetwork = copy(network)
+    if weightID <= NetSize^2
+        newNetwork[1][weightID] += randn()*μ_size
+    else
+        newNetwork[2][weightID-(NetSize^2)] += randn()*μ_size
+    end
+
+## Alternative code used by JVC 
+    #newNetwork[1] += rand(Binomial(1, μ_trait), (NetSize, NetSize)) .* rand(Normal(0, μ_size), (NetSize, NetSize))
+    #newNetwork[2] += rand(Binomial(1, μ_trait), NetSize) .* rand(Normal(0, μ_size),NetSize)
+
+    return newNetwork
+end
 
 # ## Testing network code
 # ## This generates a 2 node network with no weights and calculates 

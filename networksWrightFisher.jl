@@ -7,7 +7,7 @@ include("networksFuncs.jl") ## loading formulas
 
 ## Plots are for visualization
 ## The rest are used to run the RNG for Wright-Fisher Selection
-using  Plots, Random, Distributions, StatsBase
+using  Plots, Random, Distributions
 
 
 
@@ -69,12 +69,6 @@ function timestep(population, activation_function, activation_scale, K, polynomi
 
     ## Code for simulating reproduction
     ## Should weight selection based on relative fitness
-    
-    ## one step random sample, sometimes produces an int overflow???
-
-
-    # populationIDs = wsample(collect(1:N), fitnessScores, N)
-    # newPop = population[populationIDs]
 
     ## Iterating over a blank population, seems to produce less errors? 
 

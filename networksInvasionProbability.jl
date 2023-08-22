@@ -25,7 +25,7 @@ function invasionProbability(activation_function, activation_scale, K, polynomia
     end
 end
 
-## Testing
+## Testing / debugging functions
 ## Generating random phenotypes and showing that they'll have some invasion chance
 function debugInvasionProbability(trials, NetSize)
     resNet = [rand(Float64, (NetSize, NetSize)), rand(Float64, NetSize)]
@@ -46,8 +46,10 @@ end
 
 ## T = length of simulation / number of timesteps
 ## N = population size
+## reps = replicates
 
 function simulate(N = 10, T = 10, reps = 1)
+
     ## Generates a random network, then mutates it
 
     Φ(x) = (1 - exp(-x^2))
@@ -77,7 +79,8 @@ end
 
 function plotReplicates(N = 50, T = 50, reps = 5)
     simulationResults = simulate(N, T, reps)
-    fitnessPlot = plot(1:T, simulationResults[1], legend = :none)
-    invasionProbPlot = plot(1:T, simulationResults[2], legend = :none)
-    plot(fitnessPlot, invasionProbPlot, layout = (2,1), sharex=true)
+    fitnessPlot = plot(1:T, simulationResults[1], legend = :none, title = "Fitness of all replicates")
+    invasionProbPlot = plot(1:T, simulationResults[2], legend = :none, title = "Invasion probability")
+    # plot(fitnessPlot, invasionProbPlot, layout = (2,1), sharex=true) ## Returns a stacked plot of both figures
+    return fitnessPlot
 end

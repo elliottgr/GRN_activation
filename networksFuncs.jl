@@ -72,25 +72,25 @@ function mutateNetwork(μ_size, network)
     ## samples a random weight and shifts it
     ## Le Nagard method
 
-    NetSize = size(network[2])[1]
-    weightID = sample(1:(NetSize^2 + NetSize))
+    netSize = size(network[2])[1]
+    weightID = sample(1:(netSize^2 + netSize))
 
     ## Need to allocate a new array and fill it 
     ## copy() of the original network doesn't allocate new elements
     ## so the output network overwrites the old one
-    newNetwork = [fill(0.0, (NetSize, NetSize)), fill(0.0, NetSize)] 
+    newNetwork = [fill(0.0, (netSize, netSize)), fill(0.0, netSize)] 
     for i in eachindex(network)
         newNetwork[i] = copy(network[i])
     end
     mutationSize = randn()*μ_size
-    if weightID <= NetSize^2
+    if weightID <= netSize^2
         newNetwork[1][weightID] += mutationSize
     else
-        newNetwork[2][weightID-(NetSize^2)] += mutationSize
+        newNetwork[2][weightID-(netSize^2)] += mutationSize
     end
 ## Alternative code used by JVC 
-    #newNetwork[1] += rand(Binomial(1, μ_trait), (NetSize, NetSize)) .* rand(Normal(0, μ_size), (NetSize, NetSize))
-    #newNetwork[2] += rand(Binomial(1, μ_trait), NetSize) .* rand(Normal(0, μ_size),NetSize)
+    #newNetwork[1] += rand(Binomial(1, μ_trait), (netSize, netSize)) .* rand(Normal(0, μ_size), (netSize, netSize))
+    #newNetwork[2] += rand(Binomial(1, μ_trait), netSize) .* rand(Normal(0, μ_size),netSize)
     return newNetwork
 end
 

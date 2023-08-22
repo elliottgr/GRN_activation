@@ -9,6 +9,8 @@ function invasionProbability(activation_function, activation_scale, K, polynomia
     resFitness = fitness(activation_function, activation_scale, K, polynomialDegree, residentNetwork)
     mutFitness = fitness(activation_function, activation_scale, K, polynomialDegree, mutantNetwork)
     fitnessRatio =  resFitness / mutFitness
+
+    ## A few conditional statements broken down for debugging and dodging NaNs
     if mutFitness == 0.0
         out = 0.0
     else
@@ -27,8 +29,8 @@ end
 
 ## Testing / debugging functions
 ## Generating random phenotypes and showing that they'll have some invasion chance
-function debugInvasionProbability(trials, NetSize)
-    resNet = [rand(Float64, (NetSize, NetSize)), rand(Float64, NetSize)]
+function debugInvasionProbability(trials, netSize)
+    resNet = [rand(Float64, (netSize, netSize)), rand(Float64, netSize)]
     testHistory = fill(0.0, trials)
     Φ(x) = (1 - exp(-x^2))
     α = 1.0
@@ -36,7 +38,7 @@ function debugInvasionProbability(trials, NetSize)
     polyDegree = 1
     N = 100
     for t in 1:trials
-        mutNet = [rand(Float64, (NetSize, NetSize)), rand(Float64, NetSize)]
+        mutNet = [rand(Float64, (netSize, netSize)), rand(Float64, netSize)]
         testHistory[t] = invasionProbability(Φ, α, K, 1, N, resNet, mutNet)
     end
     return testHistory
@@ -48,20 +50,20 @@ end
 ## N = population size
 ## reps = replicates
 
-function simulate(N = 10, T = 10, reps = 1, polyDegree = 1)
+function simulate(N = 10, T = 10, reps = 1, polyDegree = 1, netSize)
 
     ## Generates a random network, then mutates it
 
     Φ(x) = (1 - exp(-x^2))
     α = 1.0
     K = 5.0
-    NetSize = 5
+    netSize = 5
     μ_size = .1
     fitnessHistories = [fill(0.0, T) for _ in 1:reps]
     invasionProbabilities = [fill(0.0, T) for _ in 1:reps]
-    finalNetworks = [[fill(0.0, (NetSize, NetSize)), fill(0.0, NetSize)] for _ in 1:reps]
+    finalNetworks = [[fill(0.0, (netSize, netSize)), fill(0.0, netSize)] for _ in 1:reps]
     for r in 1:reps
-        resNet = [rand(Float64, (NetSize, NetSize)), rand(Float64, NetSize)] ## Initial resident network
+        resNet = [rand(Float64, (netSize, netSize)), rand(Float64, netSize)] ## Initial resident network
 
         ## Main timestep loop
         for t in 1:T
@@ -75,7 +77,7 @@ function simulate(N = 10, T = 10, reps = 1, polyDegree = 1)
         end
 
         ## have to copy each index because of array rules
-        finalNetwork = [fill(0.0, (NetSize, NetSize)), fill(0.0, NetSize)]
+        finalNetwork = [fill(0.0, (netSize, netSize)), fill(0.0, netSize)]
         for i in eachindex(resNet)
             finalNetwork[i] = copy(resNet[i])
         end
@@ -113,3 +115,8 @@ function plotResponseCurves(activation_function, activation_scale, polyDegree, s
     end
     return plt
 end
+
+
+## Testing the network adaptation to the response curves 
+
+plotResponseCurves

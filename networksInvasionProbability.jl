@@ -48,7 +48,7 @@ end
 ## N = population size
 ## reps = replicates
 
-function simulate(N = 10, T = 10, reps = 1)
+function simulate(N = 10, T = 10, reps = 1, polyDegree = 1)
 
     ## Generates a random network, then mutates it
 
@@ -77,10 +77,20 @@ function simulate(N = 10, T = 10, reps = 1)
     return [fitnessHistories, invasionProbabilities]
 end
 
-function plotReplicates(N = 50, T = 50, reps = 5)
-    simulationResults = simulate(N, T, reps)
+
+## plots the fitness of each timestep in a simulation run
+## has a comment capable of plotting the invasion probability as well
+function plotReplicatesFitness(simulationResults)
     fitnessPlot = plot(1:T, simulationResults[1], legend = :none, title = "Fitness of all replicates")
     invasionProbPlot = plot(1:T, simulationResults[2], legend = :none, title = "Invasion probability")
     # plot(fitnessPlot, invasionProbPlot, layout = (2,1), sharex=true) ## Returns a stacked plot of both figures
     return fitnessPlot
+end
+
+## Samples the final network at the end of each replicate simulation
+## plots it relative to the predicted value
+function plotResponseCurves(simulationResults, polyDegree)
+    ## Plotting the polynomial curve
+    plt = plot(-1:0.02:1, collect([Pl(i, polyDegree) for i in -1:0.02:1]))
+    # responsePlot = plot!()
 end

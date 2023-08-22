@@ -74,8 +74,14 @@ function mutateNetwork(μ_size, network)
 
     NetSize = size(network[2])[1]
     weightID = sample(1:(NetSize^2 + NetSize))
-    newNetwork = copy(network)
-    print(weightID, "\n\n\n")
+
+    ## Need to allocate a new array and fill it 
+    ## copy() of the original network doesn't allocate new elements
+    ## so the output network overwrites the old one
+    newNetwork = [fill(0.0, (NetSize, NetSize)), fill(0.0, NetSize)] 
+    for i in eachindex(network)
+        newNetwork[i] = copy(network[i])
+    end
     mutationSize = randn()*μ_size
     if weightID <= NetSize^2
         newNetwork[1][weightID] += mutationSize
@@ -85,7 +91,6 @@ function mutateNetwork(μ_size, network)
 ## Alternative code used by JVC 
     #newNetwork[1] += rand(Binomial(1, μ_trait), (NetSize, NetSize)) .* rand(Normal(0, μ_size), (NetSize, NetSize))
     #newNetwork[2] += rand(Binomial(1, μ_trait), NetSize) .* rand(Normal(0, μ_size),NetSize)
-
     return newNetwork
 end
 

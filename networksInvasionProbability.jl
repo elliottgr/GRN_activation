@@ -84,9 +84,10 @@ end
 ## plots the fitness of each timestep in a simulation run
 ## has a comment capable of plotting the invasion probability as well
 function plotReplicatesFitness(simulationResults)
-    print(1:length(simulationResults[1]))
     fitnessPlot = plot(1:length(simulationResults[1][1]), simulationResults[1], title = "Fitness of all replicates")
-    invasionProbPlot = plot(1:length(simulationResults[1][1]), simulationResults[2], legend = :none, title = "Invasion probability")
+    
+    ## This can also produce a stacked plot, uncomment below :)
+    # invasionProbPlot = plot(1:length(simulationResults[1][1]), simulationResults[2], legend = :none, title = "Invasion probability")
     # plot(fitnessPlot, invasionProbPlot, layout = (2,1), sharex=true) ## Returns a stacked plot of both figures
     return fitnessPlot
 end
@@ -113,7 +114,7 @@ end
 
 ## Testing the network adaptation to the response curves 
 N = 10000 ## N (population size)
-T = 50000 ## T (simulation length)
+T = 25000 ## T (simulation length)
 reps = 10 ## number of replicates
 Φ = (f(x) = (1 - exp(-x^2))) ## Le Nagard's activation function
 # Φ = (f(x) = (1 / (1 + exp(-x)))) ## Logistic / sigmoid

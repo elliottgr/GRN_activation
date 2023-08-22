@@ -80,7 +80,7 @@ function mutateNetwork(μ_size, network)
     ## Le Nagard method
 
     netSize = size(network[2])[1]
-    weightID = sample(1:(netSize^2 + netSize))
+
 
     ## Need to allocate a new array and fill it 
     ## copy() of the original network doesn't allocate new elements
@@ -90,12 +90,32 @@ function mutateNetwork(μ_size, network)
         newNetwork[i] = copy(network[i])
     end
     mutationSize = randn()*μ_size
-    if weightID <= netSize^2
-        newNetwork[1][weightID] += mutationSize
+
+    ## There are N*(N+1)/2 elements in an upper triangular matrix, including the diagonal
+    ## If we consider those plus the N elements in the bias vector, we have N + (N*(N+1)/2) possible weights to mutate
+
+    weightID = Int64(sample(1:(netSize+(netSize*(netSize+1)/2))))
+    if weightID <= netSize
+        newNetwork[2][weightID] += mutationSize
     else
-        newNetwork[2][weightID-(netSize^2)] += mutationSize
+        i = weightID - netSize
+        j = 1
+        ## should iterate down to provide the i, j pair of the upper triangular matrix :)
+        while i > netSize
+            i -= netSize - j
+            j += 1
+        end
+        newNetwork[1][j, Int(i)] += mutationSize
     end
-## Alternative code used by JVC 
+    ## Alternate code that can mutate any weight, even those unused by the simulation
+    # weightID = sample(1:(netSize^2 + netSize))
+    # if weightID <= netSize^2
+    #     newNetwork[1][weightID] += mutationSize
+    # else
+    #     newNetwork[2][weightID-(netSize^2)] += mutationSize
+    # end
+
+    ## Alternative code used by JVC 
     #newNetwork[1] += rand(Binomial(1, μ_trait), (netSize, netSize)) .* rand(Normal(0, μ_size), (netSize, netSize))
     #newNetwork[2] += rand(Binomial(1, μ_trait), netSize) .* rand(Normal(0, μ_size),netSize)
     return newNetwork

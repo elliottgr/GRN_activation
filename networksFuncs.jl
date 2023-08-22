@@ -45,6 +45,15 @@ end
 ## as R(i, n)  with i as value and with n as degree. 
 ## Using the "LegendrePolynomial" package to generate these
 
+## We need a function to normalize the Legendre polynomials to a specific range
+## since the polynomials are already fixed to [-1, 1], we can 
+## easily rescale it to any input/output. Le Nagard et al used [.1, .9] as their interval
+function PlNormalized(x, l, min, max)
+    a = (max - min) / 2
+    b = 1 - (a)
+    return (a * Pl(x, l)) + b
+end
+
 ## Fitness Evaluation of network
 ## Need to generate N(g(i)) - R(g(i))
 
@@ -53,8 +62,7 @@ function measureNetwork(activation_function, activation_scale, polynomialDegree,
     x = 0
     for i in -1:0.02:1
         LayerOutputs = zeros(Float64, size(network[2])) ## size of the bias vector
-        # print((last(iterateNetwork(activation_function, activation_scale, i, network, LayerOutputs)) - Pl(i, polynomialDegree) ))
-        x += (last(iterateNetwork(activation_function, activation_scale, i, network, LayerOutputs)) - Pl(i, polynomialDegree))
+        x += (last(iterateNetwork(activation_function, activation_scale, i, network, LayerOutputs)) - PlNormalized(i, polynomialDegree, 0, 1))
     end
     return x
 end
@@ -62,7 +70,7 @@ end
 
 function fitness(activation_function, activation_scale, K, polynomialDegree, network)
     Wm, Wb = network
-    Var_F = var(collect([Pl(i, polynomialDegree) for i in -1:0.02:1]))
+    Var_F = var(collect([PlNormalized(i, polynomialDegree, 0, 1) for i in -1:0.02:1]))
     return exp((-K * (measureNetwork(activation_function, activation_scale, polynomialDegree, network))^2) / (100*Var_F))
 
 end

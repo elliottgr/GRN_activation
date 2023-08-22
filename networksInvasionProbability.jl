@@ -85,7 +85,7 @@ end
 ## has a comment capable of plotting the invasion probability as well
 function plotReplicatesFitness(simulationResults)
     print(1:length(simulationResults[1]))
-    fitnessPlot = plot(1:length(simulationResults[1][1]), simulationResults[1], legend = :none, title = "Fitness of all replicates")
+    fitnessPlot = plot(1:length(simulationResults[1][1]), simulationResults[1], title = "Fitness of all replicates")
     invasionProbPlot = plot(1:length(simulationResults[1][1]), simulationResults[2], legend = :none, title = "Invasion probability")
     # plot(fitnessPlot, invasionProbPlot, layout = (2,1), sharex=true) ## Returns a stacked plot of both figures
     return fitnessPlot
@@ -95,7 +95,7 @@ end
 ## plots it relative to the predicted value
 function plotResponseCurves(activation_function, activation_scale, polyDegree, simulationResults)
     ## Plotting the polynomial curve
-    plt = plot(-1:0.02:1, collect([Pl(i, polyDegree) for i in -1:0.02:1]), label = "Target")
+    plt = plot(-1:0.02:1, collect([PlNormalized(i, polyDegree, 0, 1) for i in -1:0.02:1]), label = "Target")
     
     ## Updating it with the fitness of each replicate
     for network in simulationResults[3]
@@ -112,14 +112,17 @@ end
 
 
 ## Testing the network adaptation to the response curves 
-N = 100 ## N (population size)
-T = 5000 ## T (simulation length)
-reps = 3 ## number of replicates
-Φ = (f(x) = (1 - exp(-x^2))) ## activation function
+N = 10000 ## N (population size)
+T = 50000 ## T (simulation length)
+reps = 10 ## number of replicates
+Φ = (f(x) = (1 - exp(-x^2))) ## Le Nagard's activation function
+# Φ = (f(x) = (1 / (1 + exp(-x)))) ## Logistic / sigmoid
+# Φ = (f(x) = x) ## Linear activation
+# Φ = (f(x) = maximum([0.0, x])) ## ReLU
 α = 1.0 ## α (activation coefficient)
 K = 5.0 ## K (strength of selection)
-polyDegree = 3 ## degree of the Legendre Polynomial
-netSize = 6 ## Size of the networks
+polyDegree = 2 ## degree of the Legendre Polynomial
+netSize = 10 ## Size of the networks
 μ_size = .1 ## standard deviation of mutation magnitude
 
 simResults = simulate(N, T, reps, Φ, α, K, polyDegree, netSize, μ_size)

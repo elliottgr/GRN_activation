@@ -72,7 +72,6 @@ function fitness(activation_function, activation_scale, K, polynomialDegree, net
     Wm, Wb = network
     Var_F = var(collect([PlNormalized(i, polynomialDegree, 0, 1) for i in -1:0.02:1]))
     return exp((-K * (measureNetwork(activation_function, activation_scale, polynomialDegree, network))^2) / (100*Var_F))
-
 end
 
 function mutateNetwork(μ_size, network)

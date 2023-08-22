@@ -50,15 +50,9 @@ end
 ## N = population size
 ## reps = replicates
 
-function simulate(N = 10, T = 10, reps = 1, polyDegree = 1, netSize)
+function simulate(N = 10, T = 10, reps = 1, Φ = (f(x) = (1-exp(-x^2))), α = 1.0, K = 5.0, polyDegree = 1, netSize = 5, μ_size = .1)
 
     ## Generates a random network, then mutates it
-
-    Φ(x) = (1 - exp(-x^2))
-    α = 1.0
-    K = 5.0
-    netSize = 5
-    μ_size = .1
     fitnessHistories = [fill(0.0, T) for _ in 1:reps]
     invasionProbabilities = [fill(0.0, T) for _ in 1:reps]
     finalNetworks = [[fill(0.0, (netSize, netSize)), fill(0.0, netSize)] for _ in 1:reps]
@@ -118,5 +112,15 @@ end
 
 
 ## Testing the network adaptation to the response curves 
+N = 100 ## N (population size)
+T = 1000 ## T (simulation length)
+reps = 10 ## number of replicates
+Φ = (f(x) = (1 - exp(-x^2))) ## activation function
+α = 1.0 ## α (activation coefficient)
+K = 5.0 ## K (strength of selection)
+polyDegree = 3 ## degree of the Legendre Polynomial
+netSize = 5 ## Size of the networks
+μ_size = .1 ## standard deviation of mutation magnitude
 
-plotResponseCurves
+simResults = simulate(N, T, reps, Φ, α, K, polyDegree, netSize, μ_size)
+plotResponseCurves(Φ, α, polyDegree, simResults)

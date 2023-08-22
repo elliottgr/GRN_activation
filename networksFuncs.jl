@@ -1,9 +1,10 @@
 ## Shared dependency containing functions used for simulating gene regulatory networks
+## Only includes functions used in all individual files
 
- ## Need to use the Legendre Polynomial package to calculate arbitrary degree LPs
- ## Statistics is used to quickly calculate variance for the fitness function
-
-using LegendrePolynomials, Statistics
+## Need to use the Legendre Polynomial package to calculate arbitrary degree LPs
+## Statistics is used to quickly calculate variance for the fitness function
+## StatsBase is used for sampling when calculating which weight to mutate
+using LegendrePolynomials, Statistics, StatsBase
 
 function calcOj(activation_function::Function, activation_scale::Float64, j::Int, prev_out, Wm, Wb)
     ##############################
@@ -43,7 +44,6 @@ end
 ## R is just some Legendre Polynomial, which I'm defining
 ## as R(i, n)  with i as value and with n as degree. 
 ## Using the "LegendrePolynomial" package to generate these
-##  
 
 ## Fitness Evaluation of network
 ## Need to generate N(g(i)) - R(g(i))
@@ -59,18 +59,6 @@ function measureNetwork(activation_function, activation_scale, polynomialDegree,
     return x
 end
 
-# # Testing
-# W_m = fill(0.0, 2, 2)
-# W_m = [0 0   
-#        0 0]
-# W_b = [0.0, 0.0]
-# LayerOutputs = fill(0.0, 2)
-# Φ(x) = (1 - exp(-x^2))
-
-# iterateNetwork(Φ, 1.0, 0, [W_m, W_b], LayerOutputs) ## returns expected value (0) for a zero network
-# measureNetwork(Φ, 1.0, 0, [W_m, W_b]) ## returns the expected value (-101.0) for a zero network measured against the null polynomial
-# Pl(0, 0)
-## Defining the fitness function
 
 function fitness(activation_function, activation_scale, K, polynomialDegree, network)
     Wm, Wb = network
@@ -87,12 +75,13 @@ function mutateNetwork(μ_size, network)
     NetSize = size(network[2])[1]
     weightID = sample(1:(NetSize^2 + NetSize))
     newNetwork = copy(network)
+    print(weightID, "\n\n\n")
+    mutationSize = randn()*μ_size
     if weightID <= NetSize^2
-        newNetwork[1][weightID] += randn()*μ_size
+        newNetwork[1][weightID] += mutationSize
     else
-        newNetwork[2][weightID-(NetSize^2)] += randn()*μ_size
+        newNetwork[2][weightID-(NetSize^2)] += mutationSize
     end
-
 ## Alternative code used by JVC 
     #newNetwork[1] += rand(Binomial(1, μ_trait), (NetSize, NetSize)) .* rand(Normal(0, μ_size), (NetSize, NetSize))
     #newNetwork[2] += rand(Binomial(1, μ_trait), NetSize) .* rand(Normal(0, μ_size),NetSize)
@@ -116,4 +105,3 @@ end
 # measureNetwork(Φ, 1.0, 1, [W_m, W_b]) ## returns the expected value (-101.0) for a zero network measured against the null polynomial
 # fitness(Φ, 1.0, K, 1, [W_m, W_b])
 
-## Checking the fitness function

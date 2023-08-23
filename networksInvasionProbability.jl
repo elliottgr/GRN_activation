@@ -57,7 +57,7 @@ function simulate(N = 10, T = 10, reps = 1, Φ = (f(x) = (1-exp(-x^2))), α = 1.
     invasionProbabilities = [fill(0.0, T) for _ in 1:reps]
     finalNetworks = [[fill(0.0, (netSize, netSize)), fill(0.0, netSize)] for _ in 1:reps]
     for r in 1:reps
-        resNet = [rand(Float64, (netSize, netSize)), rand(Float64, netSize)] ## Initial resident network
+        resNet = generateNetwork(netSize) ## Initial resident network
 
         ## Main timestep loop
         for t in 1:T
@@ -84,7 +84,11 @@ end
 ## plots the fitness of each timestep in a simulation run
 ## has a comment capable of plotting the invasion probability as well
 function plotReplicatesFitness(simulationResults)
-    fitnessPlot = plot(1:length(simulationResults[1][1]), simulationResults[1], title = "Fitness of all replicates")
+    netSize = length(simulationResults[3][1][2])
+    numReps = length(simulationResults[3])
+    titleStr = string("Fitness of $numReps replicates for network size $netSize")
+
+    fitnessPlot = plot(1:length(simulationResults[1][1]), simulationResults[1], title = titleStr)
     
     ## This can also produce a stacked plot, uncomment below :)
     # invasionProbPlot = plot(1:length(simulationResults[1][1]), simulationResults[2], legend = :none, title = "Invasion probability")
@@ -95,8 +99,12 @@ end
 ## Samples the final network at the end of each replicate simulation
 ## plots it relative to the predicted value
 function plotResponseCurves(activation_function, activation_scale, polyDegree, simulationResults)
+
+    netSize = length(simulationResults[3][1][2])
+    titleStr = string("Network response for networks of size $netSize")
+    
     ## Plotting the polynomial curve
-    plt = plot(-1:0.02:1, collect([PlNormalized(i, polyDegree, 0, 1) for i in -1:0.02:1]), label = "Target")
+    plt = plot(-1:0.02:1, collect([PlNormalized(i, polyDegree, 0, 1) for i in -1:0.02:1]), label = "Target", title = titleStr)
     
     ## Updating it with the fitness of each replicate
     for network in simulationResults[3]
@@ -122,7 +130,7 @@ reps = 10 ## number of replicates
 # Φ = (f(x) = maximum([0.0, x])) ## ReLU
 α = 1.0 ## α (activation coefficient)
 K = 5.0 ## K (strength of selection)
-polyDegree = 2 ## degree of the Legendre Polynomial
+polyDegree = 3 ## degree of the Legendre Polynomial
 netSize = 10 ## Size of the networks
 μ_size = .1 ## standard deviation of mutation magnitude
 

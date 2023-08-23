@@ -126,6 +126,10 @@ end
 # ## the resulting fitness to double check implementation of all
 # ## network code + the fitness function
 
+function generateNetwork(netSize)
+    return [rand(Float64, (netSize, netSize)), rand(Float64, netSize)]
+end
+
 # W_m = fill(0.0, (2,2))
 # W_b = [0.0, 0.0]
 # Φ(x) = (1 - exp(-x^2))

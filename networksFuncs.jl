@@ -39,7 +39,6 @@ function iterateNetwork(activation_function::Function, activation_scale, input, 
     return prev_out
 end
 
-
 ## Define R(g(i)), the target the network is training towards
 ## R is just some Legendre Polynomial, which I'm defining
 ## as R(i, n)  with i as value and with n as degree. 
@@ -56,17 +55,19 @@ end
 
 ## Fitness Evaluation of network
 ## Need to generate N(g(i)) - R(g(i))
-
 ## this function measures the fit of the network versus the chosen legendre polynomial 
+
 function measureNetwork(activation_function, activation_scale, polynomialDegree, network)
     x = 0
     for i in -1:0.02:1
         LayerOutputs = zeros(Float64, size(network[2])) ## size of the bias vector
-        x += (last(iterateNetwork(activation_function, activation_scale, i, network, LayerOutputs)) - PlNormalized(i, polynomialDegree, 0, 1))
+        N_i = last(iterateNetwork(activation_function, activation_scale, i, network, LayerOutputs))
+        R_i = PlNormalized(i, polynomialDegree, 0, 1)
+        # print(" N_i = $N_i   |   R_i = $R_i   |  N - R = $(N_i - R_i) \n")
+        x += abs(N_i - R_i) ## This is different from Le Nagard et al, as they merely summed the difference rather than the absolute value
     end
     return x
 end
-
 
 function fitness(activation_function, activation_scale, K, polynomialDegree, network)
     Wm, Wb = network

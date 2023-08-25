@@ -153,19 +153,63 @@ function mutateNetwork(μ_size, network)
     return newNetwork
 end
 
-Φ = (f(x) = (1 - exp(-x^2))) 
-α = 1.0
-testNetwork = generateNetwork(5,6)
-testNetworkMutant = mutateNetwork(0.1, testNetwork)
-testNetwork == testNetworkMutant ## Checking mutation process
-testActivationNetwork = zeros(Float64, (5,6)) ## dummy network, will be generated as part of network iteration later on
-calcOj(Φ, α, 1, 1, testActivationNetwork, testNetwork...)
-testInput = rand(Float64, 6)
-polyDegree = 2
-K = 5.0
-iterateNetwork(Φ, α, testInput, testNetwork, testActivationNetwork)
-measureNetwork(Φ, α, polyDegree, testNetwork)
-fitness(Φ, α, K, polyDegree, testNetwork)
+
+## plots the fitness of each timestep in a simulation run
+## has a comment capable of plotting the invasion probability as well
+function plotReplicatesFitness(simulationResults)
+    netDepth, netWidth = size(simulationResults[3][1][2])
+    numReps = length(simulationResults[3])
+    titleStr = string("Fitness of $numReps replicates for a $(netDepth) layer network with $netWidth nodes")
+
+    fitnessPlot = plot(1:length(simulationResults[1][1]), simulationResults[1], title = titleStr)
+    
+    ## This can also produce a stacked plot, uncomment below :)
+    # invasionProbPlot = plot(1:length(simulationResults[1][1]), simulationResults[2], legend = :none, title = "Invasion probability")
+    # plot(fitnessPlot, invasionProbPlot, layout = (2,1), sharex=true) ## Returns a stacked plot of both figures
+    return fitnessPlot
+end
+
+
+## Samples the final network at the end of each replicate simulation
+## plots it relative to the predicted value
+function plotResponseCurves(activation_function, activation_scale, polyDegree, simulationResults)
+
+    netDepth, netWidth = size(simulationResults[3][1][2])
+    titleStr = string("Network response for a $(netDepth) layer network with $netWidth nodes")
+    
+    ## Plotting the polynomial curve
+    plt = plot(-1:0.02:1, collect([PlNormalized(i, polyDegree, 0, 1) for i in -1:0.02:1]), label = "Target", title = titleStr)
+    
+    ## Updating it with the fitness of each replicate
+    for network in simulationResults[3]
+        valueRange = collect(-1:0.02:1) ## the range of input values the networks measure against
+        responseCurveValues = []
+        for i in valueRange
+            LayerOutputs = zeros(Float64, size(network[2])) ## size of the bias vector
+            input = fill(0.0, netWidth)
+            input[1] = i
+            push!(responseCurveValues, last(iterateNetwork(activation_function, activation_scale, input, network, LayerOutputs)[netDepth]))
+        end
+        plt = plot!(-1:0.02:1, responseCurveValues, alpha = 0.5)
+    end
+    return plt
+end
+
+
+
+# Φ = (f(x) = (1 - exp(-x^2))) 
+# α = 1.0
+# testNetwork = generateNetwork(5,6)
+# testNetworkMutant = mutateNetwork(0.1, testNetwork)
+# testNetwork == testNetworkMutant ## Checking mutation process
+# testActivationNetwork = zeros(Float64, (5,6)) ## dummy network, will be generated as part of network iteration later on
+# calcOj(Φ, α, 1, 1, testActivationNetwork, testNetwork...)
+# testInput = rand(Float64, 6)
+# polyDegree = 2
+# K = 5.0
+# iterateNetwork(Φ, α, testInput, testNetwork, testActivationNetwork)
+# measureNetwork(Φ, α, polyDegree, testNetwork)
+# fitness(Φ, α, K, polyDegree, testNetwork)
 
 # ## Testing network code
 # ## This generates a 2 node network with no weights and calculates 

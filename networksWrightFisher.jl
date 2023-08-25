@@ -8,14 +8,14 @@ using  Plots, Random, Distributions
 include("networksFuncs.jl") ## loading formulas
 
 ## Define population of N networks
-function simulate(N = 10, T = 10, reps = 1, Φ = (f(x) = (1-exp(-x^2))), α = 1.0, K = 5.0, polyDegree = 1, netSize = 5, μ = 0.01, μ_size = .1)
+function simulate(N = 10, T = 10, reps = 1, Φ = (f(x) = (1-exp(-x^2))), α = 1.0, K = 5.0, polyDegree = 1, netDepth = 5, netWidth=6, μ = 0.01, μ_size = .1)
 
     ##Iterating over all replicates
     meanFitnessReps = fill([], reps)
     varFitnessReps = fill(0.0, reps)
-    finalNetworks = [[fill(0.0, (netSize, netSize)), fill(0.0, netSize)] for _ in 1:reps]
+    finalNetworks = [[fill(fill(0.0, (netDepth, netWidth)), (netDepth, netWidth)), zeros(Float64, (netDepth, netWidth))] for _ in 1:reps]
     for r in 1:reps
-        parentNetwork = generateNetwork(netSize)
+        parentNetwork = generateNetwork(netDepth, netWidth)
         population = []
         for _ in 1:N
             push!(population, parentNetwork)
@@ -44,7 +44,7 @@ end
 function timestep(population, activation_function, activation_scale, K, polyDegree, μ, μ_size)
 
     N = length(population)
-    netSize = size(population[1][2])[1]
+    netDepth, netWidth = size(population[1][2])
 
     ## find fitness of each member of population
     fitnessScores = zeros(Float64, N)
@@ -56,7 +56,7 @@ function timestep(population, activation_function, activation_scale, K, polyDegr
     ## Should weight selection based on relative fitness
     ## Iterating over a blank population, seems to produce less errors? 
 
-    newPop = fill([fill(0.0, netSize, netSize), fill(0.0, netSize)], N)
+    newPop = fill([fill(fill(0.0, (netDepth, netWidth)), (netDepth, netWidth)), zeros(Float64, (netDepth, netWidth))], N)
     for i in 1:N
         newPop[i] = population[wsample(collect(1:N), fitnessScores)]
     end
@@ -77,33 +77,6 @@ function timestep(population, activation_function, activation_scale, K, polyDegr
 
 end
 
-## Plotting specific functions
-
-function plotReplicatesFitness(simulationResults)
-    netSize = length(simulationResults[3][1][2])
-    numReps = length(simulationResults[3])
-    titleStr = string("Fitness of $numReps replicates for network size $netSize")
-
-    fitnessPlot = plot(1:length(simulationResults[1][1]), simulationResults[1], title = titleStr)
-end
-
-function plotResponseCurves(activation_function, activation_scale, polyDegree, simulationResults)
-    ## Plotting the polynomial curve
-    plt = plot(-1:0.02:1, collect([PlNormalized(i, polyDegree, 0, 1) for i in -1:0.02:1]), label = "Target")
-    
-    ## Updating it with the fitness of each replicate
-    for network in simulationResults[3]
-        valueRange = collect(-1:0.02:1) ## the range of input values the networks measure against
-        responseCurveValues = []
-        for i in valueRange
-            LayerOutputs = zeros(Float64, size(network[2])) ## size of the bias vector
-            push!(responseCurveValues, last(iterateNetwork(activation_function, activation_scale, i, network, LayerOutputs)))
-        end
-        plt = plot!(-1:0.02:1, responseCurveValues)
-    end
-    return plt
-end
-
 ## Testing the network adaptation to the response curves 
 N = 100 ## N (population size)
 T = 250 ## T (simulation length)
@@ -115,9 +88,10 @@ reps = 10 ## number of replicates
 α = 1.0 ## α (activation coefficient)
 K = 5.0 ## K (strength of selection)
 polyDegree = 2 ## degree of the Legendre Polynomial
-netSize = 10 ## Size of the networks
+netDepth = 5 ## Size of the networks
+netWidth = 6
 μ_size = .1 ## standard deviation of mutation magnitude
 
-simResults = simulate(N, T, reps, Φ, α, K, polyDegree, netSize, μ_size)
+simResults = simulate(N, T, reps, Φ, α, K, polyDegree, netDepth, netWidth, μ_size)
 plotReplicatesFitness(simResults)
 plotResponseCurves(Φ, α, polyDegree, simResults)

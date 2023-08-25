@@ -65,6 +65,7 @@ function measureNetwork(activation_function, activation_scale, polynomialDegree,
         R_i = PlNormalized(i, polynomialDegree, 0, 1)
         # print(" N_i = $N_i   |   R_i = $R_i   |  N - R = $(N_i - R_i) \n")
         x += abs(N_i - R_i) ## This is different from Le Nagard et al, as they merely summed the difference rather than the absolute value
+        # x += N_i - R_i ## Le Nagard's method
     end
     return x
 end
@@ -72,7 +73,8 @@ end
 function fitness(activation_function, activation_scale, K, polynomialDegree, network)
     Wm, Wb = network
     Var_F = var(collect([PlNormalized(i, polynomialDegree, 0, 1) for i in -1:0.02:1]))
-    return exp((-K * (measureNetwork(activation_function, activation_scale, polynomialDegree, network))^2) / (100*Var_F))
+    # return exp((-K * (measureNetwork(activation_function, activation_scale, polynomialDegree, network))^2) / (100*Var_F)) ## With Squared measure
+    return exp((-K * (measureNetwork(activation_function, activation_scale, polynomialDegree, network))) / (100*Var_F))
 end
 
 function mutateNetwork(μ_size, network)

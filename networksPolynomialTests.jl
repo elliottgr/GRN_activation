@@ -8,7 +8,7 @@ include("networksInvasionProbability.jl")
 ## running some loops to generate datasets
 ## runs replicates on each of the Legendre Polynomials in the indicated range
 
-function iterateOverPolynomials(polyMin = 0, polyMax = 5, N = 100, T = 500, reps = 25, Φ = (f(x) = (1-exp(-x^2))), α = 1.0, K = 5.0,  netSize = 5, μ_size = .1)
+function iterateOverPolynomials(polyMin = 0, polyMax = 5, N = 1000, T = 15000, reps = 25, Φ = (f(x) = (1-exp(-x^2))), α = 1.0, K = 5.0,  netSize = 5, μ_size = .1)
     simulationResults = []
     for i in polyMin:polyMax
         push!(simulationResults, simulate(N, T, reps, Φ, α, K, i, netSize, μ_size))
@@ -26,6 +26,8 @@ function printFitness(simulationResults)
         push!(meanFitnesses, mean(meanFitness))
     end
     # return meanFitnesses
-    for i in 1:length(meanFitnesses) ## I do not care that this is bad Julia code
-        print("")
+    print("Mean Fitness of replicates for polynomial \n --------------------\n")
+    for i in 1:length(meanFitnesses) ## I do not care that this is bad Julia code, i need to print i
+        print("Degree $(i-1) : $(meanFitnesses[i])\n")
+    end
 end

@@ -29,8 +29,8 @@ end
 
 ## Testing / debugging functions
 ## Generating random phenotypes and showing that they'll have some invasion chance
-function debugInvasionProbability(trials, netSize)
-    resNet = [rand(Float64, (netSize, netSize)), rand(Float64, netSize)]
+function debugInvasionProbability(trials, netDepth, netWidth)
+    resNet = generateNetwork(netDepth, netWidth)
     testHistory = fill(0.0, trials)
     Φ(x) = (1 - exp(-x^2))
     α = 1.0
@@ -38,7 +38,7 @@ function debugInvasionProbability(trials, netSize)
     polyDegree = 1
     N = 100
     for t in 1:trials
-        mutNet = [rand(Float64, (netSize, netSize)), rand(Float64, netSize)]
+        mutNet = generateNetwork(netDepth, netWidth)
         testHistory[t] = invasionProbability(Φ, α, K, 1, N, resNet, mutNet)
     end
     return testHistory
@@ -50,15 +50,14 @@ end
 ## N = population size
 ## reps = replicates
 
-function simulate(N = 10, T = 10, reps = 1, Φ = (f(x) = (1-exp(-x^2))), α = 1.0, K = 5.0, polyDegree = 1, netSize = 5, μ_size = .1)
+function simulate(N = 10, T = 10, reps = 1, Φ = (f(x) = (1-exp(-x^2))), α = 1.0, K = 5.0, polyDegree = 1, netDepth = 5, netWidth = 6, μ_size = .1)
 
     ## Generates a random network, then mutates it
     fitnessHistories = [fill(0.0, T) for _ in 1:reps]
     invasionProbabilities = [fill(0.0, T) for _ in 1:reps]
-    finalNetworks = [[fill(0.0, (netSize, netSize)), fill(0.0, netSize)] for _ in 1:reps]
+    finalNetworks = [[fill(fill(0.0, (netDepth, netWidth)), (netDepth, netWidth)), zeros(Float64, (netDepth, netWidth))] for _ in 1:reps]
     for r in 1:reps
-        resNet = generateNetwork(netSize) ## Initial resident network
-
+        resNet = generateNetwork(netDepth, netWidth) ## Initial resident network
         ## Main timestep loop
         for t in 1:T
             mutNet = mutateNetwork(μ_size, copy(resNet))
@@ -71,7 +70,7 @@ function simulate(N = 10, T = 10, reps = 1, Φ = (f(x) = (1-exp(-x^2))), α = 1.
         end
 
         ## have to copy each index because of array rules
-        finalNetwork = [fill(0.0, (netSize, netSize)), fill(0.0, netSize)]
+        finalNetwork = [fill(fill(0.0, (netDepth, netWidth)), (netDepth, netWidth)), zeros(Float64, (netDepth, netWidth))]
         for i in eachindex(resNet)
             finalNetwork[i] = copy(resNet[i])
         end
@@ -84,9 +83,9 @@ end
 ## plots the fitness of each timestep in a simulation run
 ## has a comment capable of plotting the invasion probability as well
 function plotReplicatesFitness(simulationResults)
-    netSize = length(simulationResults[3][1][2])
+    netDepth, netWidth = size(simulationResults[3][1][2])
     numReps = length(simulationResults[3])
-    titleStr = string("Fitness of $numReps replicates for network size $netSize")
+    titleStr = string("Fitness of $numReps replicates for a $(netDepth) layer network with $netWidth nodes")
 
     fitnessPlot = plot(1:length(simulationResults[1][1]), simulationResults[1], title = titleStr)
     
@@ -100,8 +99,8 @@ end
 ## plots it relative to the predicted value
 function plotResponseCurves(activation_function, activation_scale, polyDegree, simulationResults)
 
-    netSize = length(simulationResults[3][1][2])
-    titleStr = string("Network response for networks of size $netSize")
+    netDepth, netWidth = size(simulationResults[3][1][2])
+    titleStr = string("Network response for a $(netDepth) layer network with $netWidth nodes")
     
     ## Plotting the polynomial curve
     plt = plot(-1:0.02:1, collect([PlNormalized(i, polyDegree, 0, 1) for i in -1:0.02:1]), label = "Target", title = titleStr)
@@ -112,17 +111,19 @@ function plotResponseCurves(activation_function, activation_scale, polyDegree, s
         responseCurveValues = []
         for i in valueRange
             LayerOutputs = zeros(Float64, size(network[2])) ## size of the bias vector
-            push!(responseCurveValues, last(iterateNetwork(activation_function, activation_scale, i, network, LayerOutputs)))
+            input = fill(0.0, netWidth)
+            input[1] = i
+            push!(responseCurveValues, last(iterateNetwork(activation_function, activation_scale, input, network, LayerOutputs)[netDepth]))
         end
-        plt = plot!(-1:0.02:1, responseCurveValues)
+        plt = plot!(-1:0.02:1, responseCurveValues, alpha = 0.5)
     end
     return plt
 end
 
 
 ## Testing the network adaptation to the response curves 
-N = 10000 ## N (population size)
-T = 25000 ## T (simulation length)
+N = 1000 ## N (population size)
+T = 5000 ## T (simulation length)
 reps = 10 ## number of replicates
 Φ = (f(x) = (1 - exp(-x^2))) ## Le Nagard's activation function
 # Φ = (f(x) = (1 / (1 + exp(-x)))) ## Logistic / sigmoid
@@ -130,10 +131,11 @@ reps = 10 ## number of replicates
 # Φ = (f(x) = maximum([0.0, x])) ## ReLU
 α = 1.0 ## α (activation coefficient)
 K = 5.0 ## K (strength of selection)
-polyDegree = 1 ## degree of the Legendre Polynomial
-netSize = 2 ## Size of the networks
+polyDegree = 2 ## degree of the Legendre Polynomial
+netDepth = 3 ## Size of the networks
+netWidth = 3
 μ_size = .1 ## standard deviation of mutation magnitude
 
-simResults = simulate(N, T, reps, Φ, α, K, polyDegree, netSize, μ_size)
+simResults = simulate(N, T, reps, Φ, α, K, polyDegree, netDepth, netWidth, μ_size)
 plotReplicatesFitness(simResults)
 plotResponseCurves(Φ, α, polyDegree, simResults)

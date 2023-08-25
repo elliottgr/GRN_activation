@@ -6,6 +6,55 @@
 ## StatsBase is used for sampling when calculating which weight to mutate
 using LegendrePolynomials, Statistics, StatsBase
 
+## Generates a randomized network containing 
+## netDepth = layers of network
+## netWidth = number of nodes per layer
+## this is instantiated as a series of node connection weights (W_m) and node biases (W_b)
+## W_m is a matrix (i = netDepth, j = netWidth) of submatrices
+## Each submatrix (k, l) contains a float that characterizes the weight from nodes (k, l) -> (i, j)
+## W_b is a matrix for the activation bias of node (i, j)
+
+function generateNetwork(netDepth, netWidth)
+    Wm = fill(fill(rand(Float64), (netDepth, netWidth)), (netDepth, netWidth))
+    # for i_j in eachindex(Wm)
+    #     Wm[i_j] = rand(Float64, (netDepth, netWidth))
+    # end
+    Wb = rand(Float64, (netDepth, netWidth))
+    return [Wm, Wb]
+end
+
+## calcOj calculates the value of a single node j in layer i
+
+function calcOj(activation_function::Function, activation_scale::Float64, j::Int, i::Int, activationMatrix, Wm, Wb)
+    netWidth = size(Wm[1])[2]
+    x = 0 ## activation
+    for k in 1:(i-1)
+        for l in 1:netWidth
+            ## Wm[i, j][k, l] is the network weight
+            x += (Wm[i, j][k, l] * activationMatrix[k, l])
+        end
+    end
+    x += Wb[i, j]
+    return(activation_function(activation_scale * x)) 
+end
+
+## Testing the functions as I go
+Φ = (f(x) = (1 - exp(-x^2))) 
+α = 1.0
+testNetwork = generateNetwork(5,6)
+testActivationNetwork = rand(Float64, (5,6)) ## dummy network, will be generated as part of network iteration later on
+calcOj(Φ, α, 1, 1, testActivationNetwork, testNetwork...)
+
+## Define g(i), the network response to some input
+## is the gradient iterator, g(i) = -1 + (2 * i/100)
+## Here I'm just using it as an input range 
+## N(g(i)) is just the network evaluation at some g(i) 
+## Still calling the function iterateNetwork for clarity, originally taken from socialGRN project
+
+function iterateNetwork(activation_function::Function, activation_scale, input, network, prev_out)
+
+end
+
 function calcOj(activation_function::Function, activation_scale::Float64, j::Int, prev_out, Wm, Wb)
     ##############################
     ## Iterates a single layer of the Feed Forward network
@@ -19,12 +68,6 @@ function calcOj(activation_function::Function, activation_scale::Float64, j::Int
     x += Wb[j]
     return(activation_function(activation_scale * x)) 
 end
-
-## Define g(i), the network response to some input
-## is the gradient iterator, g(i) = -1 + (2 * i/100)
-## Here I'm just using it as an input range 
-## N(g(i)) is just the network evaluation at some g(i) 
-## Still calling the function iterateNetwork for clarity
 
 function iterateNetwork(activation_function::Function, activation_scale, input, network, prev_out)
     ##############################
@@ -128,10 +171,6 @@ end
 # ## This generates a 2 node network with no weights and calculates 
 # ## the resulting fitness to double check implementation of all
 # ## network code + the fitness function
-
-function generateNetwork(netSize)
-    return [rand(Float64, (netSize, netSize)), rand(Float64, netSize)]
-end
 
 # W_m = fill(0.0, (2,2))
 # W_b = [0.0, 0.0]

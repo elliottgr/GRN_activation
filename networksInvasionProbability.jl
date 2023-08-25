@@ -130,8 +130,8 @@ reps = 10 ## number of replicates
 # Φ = (f(x) = maximum([0.0, x])) ## ReLU
 α = 1.0 ## α (activation coefficient)
 K = 5.0 ## K (strength of selection)
-polyDegree = 3 ## degree of the Legendre Polynomial
-netSize = 10 ## Size of the networks
+polyDegree = 1 ## degree of the Legendre Polynomial
+netSize = 2 ## Size of the networks
 μ_size = .1 ## standard deviation of mutation magnitude
 
 simResults = simulate(N, T, reps, Φ, α, K, polyDegree, netSize, μ_size)

@@ -14,8 +14,11 @@ using LegendrePolynomials, Statistics, StatsBase
 ## Each submatrix (k, l) contains a float that characterizes the weight from nodes (k, l) -> (i, j)
 ## W_b is a matrix for the activation bias of node (i, j)
 
-function generateNetwork(netDepth, netWidth, val)
-    Wm = fill(fill(rand(Float64), (netDepth, netWidth)), (netDepth, netWidth))
+function generateNetwork(netDepth, netWidth)
+    Wm = fill(Matrix{Float64}(undef, (netDepth, netWidth)), (netDepth, netWidth))
+    for ij in eachindex(Wm)
+        Wm[ij] = rand(Float64, (netDepth, netWidth)) ## generates each as a unique random matrix. Doing it in one line doesn't work afaik
+    end
     Wb = rand(Float64, (netDepth, netWidth))
     return [Wm, Wb]
 end

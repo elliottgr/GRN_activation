@@ -14,13 +14,14 @@ using LegendrePolynomials, Statistics, StatsBase
 ## Each submatrix (k, l) contains a float that characterizes the weight from nodes (k, l) -> (i, j)
 ## W_b is a matrix for the activation bias of node (i, j)
 
-function generateNetwork(netDepth, netWidth)
+function generateNetwork(netDepth, netWidth, val)
     Wm = fill(fill(rand(Float64), (netDepth, netWidth)), (netDepth, netWidth))
-    # for i_j in eachindex(Wm)
-    #     Wm[i_j] = rand(Float64, (netDepth, netWidth))
-    # end
     Wb = rand(Float64, (netDepth, netWidth))
     return [Wm, Wb]
+end
+
+function generateFilledNetwork(netDepth, netWidth,val::Float64)
+    return [fill(fill(val, (netDepth, netWidth)), (netDepth, netWidth)), fill(val, (netDepth, netWidth))]
 end
 
 ## calcOj calculates the value of a single node j in layer i
@@ -101,8 +102,9 @@ function measureNetwork(activation_function, activation_scale, polynomialDegree,
         N_i = last((iterateNetwork(activation_function, activation_scale, input, network, activationMatrix))[netDepth])
         R_i = PlNormalized(i, polynomialDegree, 0, 1)
         # print(" N_i = $N_i   |   R_i = $R_i   |  N - R = $(N_i - R_i) \n")
-        x += abs(N_i - R_i) ## This is different from Le Nagard et al, as they merely summed the difference rather than the absolute value
+        # x += (N_i - R_i) ## This is different from Le Nagard et al, as they merely summed the difference rather than the absolute value
         # x += N_i - R_i ## Le Nagard's method
+        x += (N_i - R_i) ^2
     end
     return x
 end
@@ -128,7 +130,7 @@ function mutateNetwork(μ_size, network)
     ## Need to allocate a new array and fill it 
     ## copy() of the original network doesn't allocate new elements
     ## so the output network overwrites the old one
-    newNetwork = [fill(fill(0.0, (netDepth, netWidth)), (netDepth, netWidth)), zeros(Float64, (netDepth, netWidth))]
+    newNetwork = generateFilledNetwork(netDepth, netWidth, 0.0)
     for i in eachindex(network)
         newNetwork[i] = copy(network[i])
     end
@@ -138,18 +140,18 @@ function mutateNetwork(μ_size, network)
     ## A large portion of them are "silent mutations"
     ## because only a fraction of the mutants will change network outputs
     ## k = 0 will simply be the bias vectors
-    i = sample(1:netDepth)
-    j = sample(1:netWidth)
-    k = sample(0:i-1)
-    l = sample(1:netWidth)
+    while newNetwork == network
+        i = sample(1:netDepth)
+        j = sample(1:netWidth)
+        k = sample(0:i-1)
+        l = sample(1:netWidth)
 
-    if k > 0
-        newNetwork[1][i, j][k, l] += mutationSize
-    else
-        newNetwork[2][i, j] += mutationSize
+        if k > 0
+            newNetwork[1][i, j][k, l] += mutationSize
+        else
+            newNetwork[2][i, j] += mutationSize
+        end
     end
-    # print("i : $i , j : $j, k : $k, l : $l \n")
-
     return newNetwork
 end
 
@@ -195,35 +197,64 @@ function plotResponseCurves(activation_function, activation_scale, polyDegree, s
     return plt
 end
 
+##############################################
+## Unit Testing and Debugging functions
+##############################################
 
 
-# Φ = (f(x) = (1 - exp(-x^2))) 
-# α = 1.0
-# testNetwork = generateNetwork(5,6)
-# testNetworkMutant = mutateNetwork(0.1, testNetwork)
-# testNetwork == testNetworkMutant ## Checking mutation process
-# testActivationNetwork = zeros(Float64, (5,6)) ## dummy network, will be generated as part of network iteration later on
-# calcOj(Φ, α, 1, 1, testActivationNetwork, testNetwork...)
-# testInput = rand(Float64, 6)
-# polyDegree = 2
-# K = 5.0
-# iterateNetwork(Φ, α, testInput, testNetwork, testActivationNetwork)
-# measureNetwork(Φ, α, polyDegree, testNetwork)
-# fitness(Φ, α, K, polyDegree, testNetwork)
 
-# ## Testing network code
-# ## This generates a 2 node network with no weights and calculates 
-# ## the resulting fitness to double check implementation of all
-# ## network code + the fitness function
+Φ = (f(x) = (1 - exp(-x^2))) 
+α = 1.0
+testNetwork = generateNetwork(5,6)
+testNetworkMutant = mutateNetwork(0.1, testNetwork)
 
-# W_m = fill(0.0, (2,2))
-# W_b = [0.0, 0.0]
-# Φ(x) = (1 - exp(-x^2))
-# K = 5.0
-# Var_F = var(collect([Pl(i, 1) for i in -1:0.02:1]))
-# testFitness = exp( (-K * (-101.0)^2) / (100* Var_F) ) ## Explicitly calculating the fitness without measuring the networks :)
+## Testing that mutation can generate new mutants without overwriting the old individual
+function testMutationFunction(netDepth=50, netWidth=10)
+    count = 0
+    for _ in 1:100
+        testNetwork = generateNetwork(netDepth,netWidth)
+        testNetworkMutant = mutateNetwork(0.1, testNetwork)
+        if testNetwork != testNetworkMutant ## Checking mutation process
+            count+= 1
+        end
+    end
+    return count
+end
 
-# iterateNetwork(Φ, 1.0, 1, [W_m, W_b], LayerOutputs) ## returns expected value (0) for a zero network
-# measureNetwork(Φ, 1.0, 1, [W_m, W_b]) ## returns the expected value (-101.0) for a zero network measured against the null polynomial
-# fitness(Φ, 1.0, K, 1, [W_m, W_b])
+testActivationNetwork = zeros(Float64, (5,6)) ## dummy network, will be generated as part of network iteration later on
+calcOj(Φ, α, 1, 1, testActivationNetwork, testNetwork...)
+testInput = rand(Float64, 6)
+polyDegree = 2
+K = 5.0
+N = 100
+iterateNetwork(Φ, α, testInput, testNetwork, testActivationNetwork)
+measureNetwork(Φ, α, polyDegree, testNetwork)
+fitness(Φ, α, K, polyDegree, testNetwork)
+invasionProbability(Φ, α, K, polyDegree, N, testNetwork, testNetworkMutant)
 
+## Blank network testing
+## Should return zero output
+netDepth = 3
+netWidth = 3
+blankNetwork = generateFilledNetwork(netDepth,netWidth, 0.0)
+testInput = fill(0.0, netWidth)
+testActivationMatrix = zeros(Float64, (netDepth, netWidth))
+print(iterateNetwork(Φ, α, testInput, blankNetwork, testActivationMatrix))
+
+
+## Testing / debugging functions
+## Generating random phenotypes and showing that they'll have some invasion chance
+function debugInvasionProbability(trials, netDepth, netWidth)
+    resNet = generateNetwork(netDepth, netWidth)
+    testHistory = fill(0.0, trials)
+    Φ(x) = (1 - exp(-x^2))
+    α = 1.0
+    K = 1.0
+    polyDegree = 1
+    N = 100
+    for t in 1:trials
+        mutNet = generateNetwork(netDepth, netWidth)
+        testHistory[t] = invasionProbability(Φ, α, K, 1, N, resNet, mutNet)
+    end
+    return testHistory
+end

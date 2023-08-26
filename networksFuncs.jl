@@ -203,10 +203,7 @@ end
 
 
 
-Φ = (f(x) = (1 - exp(-x^2))) 
-α = 1.0
-testNetwork = generateNetwork(5,6)
-testNetworkMutant = mutateNetwork(0.1, testNetwork)
+
 
 ## Testing that mutation can generate new mutants without overwriting the old individual
 function testMutationFunction(netDepth=50, netWidth=10)
@@ -221,25 +218,29 @@ function testMutationFunction(netDepth=50, netWidth=10)
     return count
 end
 
-testActivationNetwork = zeros(Float64, (5,6)) ## dummy network, will be generated as part of network iteration later on
-calcOj(Φ, α, 1, 1, testActivationNetwork, testNetwork...)
-testInput = rand(Float64, 6)
-polyDegree = 2
-K = 5.0
-N = 100
-iterateNetwork(Φ, α, testInput, testNetwork, testActivationNetwork)
-measureNetwork(Φ, α, polyDegree, testNetwork)
-fitness(Φ, α, K, polyDegree, testNetwork)
-invasionProbability(Φ, α, K, polyDegree, N, testNetwork, testNetworkMutant)
+# Φ = (f(x) = (1 - exp(-x^2))) 
+# α = 1.0
+# testNetwork = generateNetwork(5,6)
+# testNetworkMutant = mutateNetwork(0.1, testNetwork)
+# testActivationNetwork = zeros(Float64, (5,6)) ## dummy network, will be generated as part of network iteration later on
+# calcOj(Φ, α, 1, 1, testActivationNetwork, testNetwork...)
+# testInput = rand(Float64, 6)
+# polyDegree = 2
+# K = 5.0
+# N = 100
+# iterateNetwork(Φ, α, testInput, testNetwork, testActivationNetwork)
+# measureNetwork(Φ, α, polyDegree, testNetwork)
+# fitness(Φ, α, K, polyDegree, testNetwork)
+# invasionProbability(Φ, α, K, polyDegree, N, testNetwork, testNetworkMutant)
 
-## Blank network testing
-## Should return zero output
-netDepth = 3
-netWidth = 3
-blankNetwork = generateFilledNetwork(netDepth,netWidth, 0.0)
-testInput = fill(0.0, netWidth)
-testActivationMatrix = zeros(Float64, (netDepth, netWidth))
-print(iterateNetwork(Φ, α, testInput, blankNetwork, testActivationMatrix))
+# ## Blank network testing
+# ## Should return zero output
+# netDepth = 3
+# netWidth = 3
+# blankNetwork = generateFilledNetwork(netDepth,netWidth, 0.0)
+# testInput = fill(0.0, netWidth)
+# testActivationMatrix = zeros(Float64, (netDepth, netWidth))
+# print(iterateNetwork(Φ, α, testInput, blankNetwork, testActivationMatrix))
 
 
 ## Testing / debugging functions

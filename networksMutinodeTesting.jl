@@ -17,18 +17,16 @@ function oldCalcOj(activationFunction::Function, activationScale::Float64, j::In
     return(activationFunction(activationScale * x)) 
 end
 
-# ## This generates an N node network with no weights and calculates the calcOj of it
-## Does not include all parameters of the later version  
-function testOldCalcOj(activationFunction::Function, activationScale::Float64, netDepth = 2, netWeights = 0.0, testInput = 0.0, calcLayer = 1)
-    W_m = fill(netWeights, (netDepth,netDepth))
-    W_b = fill(netWeights, netDepth)
+function testOldCalcOj(activationFunction::Function, activationScale::Float64, network, testInput = 0.0, calcLayer = 1)
+    W_m, W_b = network
     prev_out = fill(0.0, netDepth) ## blank N node input
     prev_out[1] = testInput ## probably a way to do this in one line lol
     oldCalcOj(activationFunction, activationScale, calcLayer, prev_out, W_m, W_b)
 end
 
-function testNewCalcOj(activationFunction::Function, activationScale::Float64, netDepth = 2, netWidth = 1, netWeights = 0.0, testInput = 0.0, calcLayer = 1, calcNode = 1)
-    W_m, W_b = generateFilledNetwork(netDepth, netWidth, netWeights)
+function testNewCalcOj(activationFunction::Function, activationScale::Float64, network, testInput = 0.0, calcLayer = 1, calcNode = 1)
+    W_m, W_b = network
+    netDepth, netWidth = size(W_b)
     activationMatrix = zeros(Float64, (netDepth, netWidth))
     testInputVector = zeros(Float64, netWidth)
     testInputVector[1] = testInput
@@ -38,17 +36,23 @@ end
 
 
 ## testing calcOj over a range of weights
-function compareCalcOj(activationFunction, activationScale, netDepth, netWidth, calcLayer, calcNode, weightRange, inputRange)
-    for w in weightRange
-        for i in inputRange
-            if testOldCalcOj(activationFunction, activationScale, netDepth, w, i, calcLayer) != testNewCalcOj(activationFunction, activationScale, netDepth, netWidth, w, i, calcLayer, calcNode)
-                return false
-            end 
-        end
-    end
+function compareCalcOj(activationFunction, activationScale, netDepth, netWidth, calcLayer, calcNode, inputRange)
+    # generating randomized networks and reshaping them to see when there will be a difference
+    network = generateNetwork(netDepth, netWidth)
+    for i in inputRange
+        if testOldCalcOj(activationFunction, activationScale, network, calcNode, i) != testNewCalcOj(activationFunction, activationScale, network, i, calcLayer, calcNode)
+            return false
+        end 
+    end   
     return true
 end
 
+netWidth = 1
+testOldCalcOj(activationFunction, activationScale, generateFilledNetwork(netDepth, netWidth, netWeights), testInput, calcLayer)
+testNewCalcOj(activationFunction, activationScale, generateFilledNetwork(netDepth, netWidth, netWeights), testInput, calcLayer)
+# for i in 1:netDepth
+    compareCalcOj(activationFunction, activationScale, netDepth, netWidth, calcLayer, calcNode, inputRange)
+# end
 function oldIterateNetwork(activationFunction::Function, activationScale, input, network, prev_out)
     ##############################
     ## Calculates the total output of the network,

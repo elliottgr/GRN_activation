@@ -27,7 +27,9 @@ end
 function testNewCalcOj(activation_function::Function, activation_scale::Float64, netDepth = 2, netWidth = 1, netWeights = 0.0, testInput = 0.0, calcLayer = 1, calcNode = 1)
     W_m, W_b = generateFilledNetwork(netDepth, netWidth, netWeights)
     activationMatrix = zeros(Float64, netWidth)
-    activationMatrix[1, 1:netWidth] = testInput
+    testInputVector = zeros(Float64, netWidth)
+    testInputVector[1] = testInput
+    activationMatrix[1, 1:netWidth] = testInputVector
     calcOj(activation_function, activation_scale, calcNode, calcLayer, activationMatrix, W_m, W_b)
 end
 

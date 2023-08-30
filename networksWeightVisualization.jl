@@ -39,7 +39,9 @@ begin
 						end
 					end
 				end
-				push!(labels, "$(i)_$(j)")
+				if i > 1
+					push!(labels, "$(i)_$(j)")
+				end
 			end
 		end
 		return unique(labels)
@@ -86,8 +88,9 @@ begin
 						end
 					end
 				end
-				outNetwork[2][i, j] = weights[Symbol("$(i)_$(j)")]
-				weightIndex += 1
+				if i > 1
+					outNetwork[2][i, j] = weights[Symbol("$(i)_$(j)")]
+				end
 			end
 		end
 		return outNetwork

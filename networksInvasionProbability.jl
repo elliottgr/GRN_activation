@@ -16,12 +16,18 @@ function invasionProbability(activation_function, activation_scale, K, polynomia
     else
         num = 1 - (fitnessRatio)^2
         den = 1 - ((fitnessRatio)^(2*N))
-        out = num/den
+        if num == den
+            out = 0.0 ## clones cannot invade
+        else
+            out = num/den
+        end
          ## Debugging, will flood the console but prints all fitness tests
         # print("resFit : $resFitness  |  mutFit : $mutFitness  | fitnessRatio :  $fitnessRatio  |  Num : $num  |  Den : $den  |  Prob : $out \n")
     end
     if isnan(out) == true
-        return 0.0
+        print("oh no")
+        # return 0.0
+        return out
     else
         return out
     end
@@ -42,12 +48,19 @@ function simulate(N = 10, T = 10, reps = 1, Φ = (f(x) = (1-exp(-x^2))), α = 1.
     for r in 1:reps
         resNet = generateNetwork(netDepth, netWidth) ## Initial resident network
         ## Main timestep loop
+        probableInvasions = 0
+        actualInvasions = 0
         for t in 1:T
             mutNet = mutateNetwork(μ_size, copy(resNet))
             invasionProb = invasionProbability(Φ, α, K, polyDegree, N, resNet, mutNet)
             invasionProbabilities[r][t] = invasionProb
+            if fitness(resNet) <= fitness(mutNet)
+                probableInvasions += 1
+            end
+
             if rand() <= invasionProb
                 resNet = mutNet
+                actualInvasions += 1
             end
             fitnessHistories[r][t] = fitness(Φ, α, K, polyDegree, resNet)
         end
@@ -62,22 +75,19 @@ function simulate(N = 10, T = 10, reps = 1, Φ = (f(x) = (1-exp(-x^2))), α = 1.
     return [fitnessHistories, invasionProbabilities, finalNetworks]
 end
 
-
-
-
 ## Testing the network adaptation to the response curves 
-N = 1000 ## N (population size)
-T = 50000 ## T (simulation length)
-reps = 2 ## number of replicates
+N = 10000 ## N (population size)
+T = 10000 ## T (simulation length)
+reps = 1 ## number of replicates
 Φ = (f(x) = (1 - exp(-x^2))) ## Le Nagard's activation function
 # Φ = (f(x) = (1 / (1 + exp(-x)))) ## Logistic / sigmoid
 # Φ = (f(x) = x) ## Linear activation
 # Φ = (f(x) = maximum([0.0, x])) ## ReLU
 α = 1.0 ## α (activation coefficient)
 K = 5.0 ## K (strength of selection)
-polyDegree = 3 ## degree of the Legendre Polynomial
+polyDegree = 1 ## degree of the Legendre Polynomial
 netDepth = 3 ## Size of the networks
-netWidth = 2
+netWidth = 1
 μ_size = .1 ## standard deviation of mutation magnitude
 
 simResults = simulate(N, T, reps, Φ, α, K, polyDegree, netDepth, netWidth, μ_size)

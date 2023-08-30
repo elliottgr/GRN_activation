@@ -105,9 +105,9 @@ function measureNetwork(activation_function, activation_scale, polynomialDegree,
         N_i = last((iterateNetwork(activation_function, activation_scale, input, network, activationMatrix))[netDepth])
         R_i = PlNormalized(i, polynomialDegree, 0, 1)
         # print(" N_i = $N_i   |   R_i = $R_i   |  N - R = $(N_i - R_i) \n")
-        # x += (N_i - R_i) ## This is different from Le Nagard et al, as they merely summed the difference rather than the absolute value
+        x += abs(N_i - R_i) ## This is different from Le Nagard et al, as they merely summed the difference rather than the absolute value
         # x += N_i - R_i ## Le Nagard's method
-        x += (N_i - R_i) ^2
+        # x += (N_i - R_i) ^2
     end
     return x
 end
@@ -203,10 +203,6 @@ end
 ##############################################
 ## Unit Testing and Debugging functions
 ##############################################
-
-
-
-
 
 ## Testing that mutation can generate new mutants without overwriting the old individual
 function testMutationFunction(netDepth=50, netWidth=10)

@@ -36,23 +36,17 @@ function testNewCalcOj(activationFunction::Function, activationScale::Float64, n
     calcOj(activationFunction, activationScale, calcNode, calcLayer, activationMatrix, W_m, W_b)
 end
 
-## Plots the output of a calcOj iteration for a range of inputs
-function compareCalcOj(activationFunction, activationScale, netDepth = 2, netWidth = 1, netWeights = 0.0, calcLayer = 1, calcNode = 1, inputRange = -1:0.02:1)
-    oldCalcOj_i = [testOldCalcOj(activationFunction, activationScale, netDepth, netWeights, i, calcLayer) for i in inputRange]
-    newCalcOj_i = [testNewCalcOj(activationFunction, activationScale, netDepth, netWidth, netWeights, i, calcLayer, calcNode) for i in inputRange]
-    # plot([oldCalcOj_i, newCalcOj_i], labels = ["Old", "New"])
-    return oldCalcOj_i == newCalcOj_i
-end
 
 ## testing calcOj over a range of weights
-function compareAcrossWeightsCalcOj(activationFunction, activationScale, netDepth, netWidth, netWeights, calcLayer, calcNode, inputRange)
-    check = true
-    for i in inputRange
-        if compareCalcOj(activationFunction, activationScale, netDepth, netWidth, i, calcLayer, calcNode, inputRange) != true ## True if true for all tests
-            check = false
+function compareCalcOj(activationFunction, activationScale, netDepth, netWidth, calcLayer, calcNode, weightRange, inputRange)
+    for w in weightRange
+        for i in inputRange
+            if testOldCalcOj(activationFunction, activationScale, netDepth, w, i, calcLayer) != testNewCalcOj(activationFunction, activationScale, netDepth, netWidth, w, i, calcLayer, calcNode)
+                return false
+            end 
         end
     end
-    return check
+    return true
 end
 
 function oldIterateNetwork(activationFunction::Function, activationScale, input, network, prev_out)
@@ -86,16 +80,38 @@ function testNewIterateNetwork(activationFunction, activationScale, netDepth, ne
     iterateNetwork(activationFunction, activationScale, testInputVector, [W_m, W_b], activationMatrix)
 end
 
-function compareIterateNetwork(activationFunction, activationScale, netDepth, netWidth, netWeights, testInput)
-    return testOldIterateNetwork(activationFunction, activationScale, netDepth, netWidth, netWeights, testInput) == vec(testNewIterateNetwork(activationFunction, activationScale, netDepth, netWidth, netWeights, testInput))
-end
-
-function compareAcrossWeightsIterateNetwork(activationFunction, activationScale, netDepth, netWidth, weightRange, inputRange)
-    for input in inputRange
-        for weight in weightRange
-            if compareIterateNetwork(activationFunction, activationScale, netDepth, netWidth, weight, input) == false
+function compareIterateNetwork(activationFunction, activationScale, netDepth, netWidth, weightRange, inputRange)
+    for i in inputRange
+        for w in weightRange
+            if testOldIterateNetwork(activationFunction, activationScale, netDepth, netWidth, w, i) != vec(testNewIterateNetwork(activationFunction, activationScale, netDepth, netWidth, w, i))
                 return false
             end
+        end
+    end
+    return true
+end
+
+function oldMeasureNetwork(activationFunction, activationScale, polynomialDegree, network)
+    x = 0
+    for i in -1:0.02:1
+        LayerOutputs = zeros(Float64, size(network[2])) ## size of the bias vector
+        # print((last(iterateNetwork(activationFunction, activationScale, i, network, LayerOutputs)) - Pl(i, polynomialDegree) ))
+        N_i = last(oldIterateNetwork(activationFunction, activationScale, i, network, LayerOutputs)) 
+        R_i = PlNormalized(i, polynomialDegree, 0, 1)
+        x += abs(N_i - R_i)
+    end
+    return x
+end
+
+function testMeasureNetwork(activationFunction, activationScale, polyDegree)
+    for w in weightSamples
+        W_m = fill(w, (netDepth,netDepth))
+        W_b = fill(w, netDepth)
+        old = oldMeasureNetwork(activationFunction, activationScale, polyDegree, [W_m, W_b] )
+        new = measureNetwork(activationFunction, activationScale, polyDegree, generateFilledNetwork(netDepth, netWidth, w))
+        if old != new
+        # print("Weight : $w  ||  Old : $old  ||  New : $new \n")
+            return false
         end
     end
     return true
@@ -105,30 +121,24 @@ activationFunction = (f(x) = (1 - exp(-x^2)))
 activationScale = 1.0
 netDepth = 5
 netWidth = 1
-netWeights = 10.0
-testInput = 0.0
+netWeights = 0.0
+polyDegree = 3
+
+## Dummy variables
+testInput = 10.0
 calcLayer = 1
 calcNode = 1
 inputRange = -1:0.2:1 ## just using the step function from Le Nagard
+weightSamples = collect(randn(100))
 
-function oldMeasureNetwork(activationFunction, activationScale, polynomialDegree, network)
-    x = 0
-    for i in -1:0.02:1
-        LayerOutputs = zeros(Float64, size(network[2])) ## size of the bias vector
-        # print((last(iterateNetwork(activationFunction, activationScale, i, network, LayerOutputs)) - Pl(i, polynomialDegree) ))
-        x += (last(iterateNetwork(activationFunction, activationScale, i, network, LayerOutputs)) - PlNormalized(i, polynomialDegree, 0, 1))
-    end
-    return x
-end
-
-oldMeasureNetwork(activationFunction)
 
 ## these checks should come back the same regardless of network dimension
 samples = 10 ## Showing that a random sample of weights will return the same value in both cases
 testOldCalcOj(activationFunction, activationScale, netDepth, netWeights, testInput, calcLayer) == testNewCalcOj(activationFunction, activationScale, netDepth, netWidth, netWeights, testInput, calcLayer, calcNode)
 testOldIterateNetwork(activationFunction, activationScale, netDepth, netWidth, netWeights, testInput)[netDepth] == testNewIterateNetwork(activationFunction, activationScale, netDepth, netWidth, netWeights, testInput)[netDepth, netWidth]
-compareAcrossWeightsCalcOj(activationFunction, activationScale, netDepth, netWidth, netWeights, calcLayer, calcNode, collect(randn((samples))))
+compareCalcOj(activationFunction, activationScale, netDepth, netWidth, calcLayer, calcNode, collect(randn((samples))), collect(randn((samples))))
 
 
 ## These checks should come back true if the networks are of width = 1, but false otherwise
-compareAcrossWeightsIterateNetwork(activationFunction, activationScale, netDepth, netWidth, collect(randn((samples))), collect(randn((samples))))
+compareIterateNetwork(activationFunction, activationScale, netDepth, netWidth, collect(randn((samples))), collect(randn((samples))))
+testMeasureNetwork(activationFunction, activationScale, polyDegree)

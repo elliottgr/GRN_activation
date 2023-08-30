@@ -29,7 +29,7 @@ end
 
 ## calcOj calculates the value of a single node j in layer i
 
-function calcOj(activation_function::Function, activation_scale::Float64, j::Int, i::Int, activationMatrix, Wm, Wb)
+function calcOj(activationFunction::Function, activationScale::Float64, j::Int, i::Int, activationMatrix, Wm, Wb)
     netWidth = size(Wb)[2]
     x = 0 ## activation
     for k in 1:(i-1)
@@ -39,7 +39,7 @@ function calcOj(activation_function::Function, activation_scale::Float64, j::Int
         end
     end
     x += Wb[i, j]
-    return(activation_function(activation_scale * x)) 
+    return(activationFunction(activationScale * x)) 
 end
 
 
@@ -49,7 +49,7 @@ end
 ## N(g(i)) is just the network evaluation at some g(i) 
 ## Still calling the function iterateNetwork for clarity, originally taken from socialGRN project
 
-function iterateNetwork(activation_function::Function, activation_scale, input, network, activationMatrix)
+function iterateNetwork(activationFunction::Function, activationScale, input, network, activationMatrix)
 
     ## Calculates the total output of the network,
     ## iterating over calcOj() for each node
@@ -59,7 +59,7 @@ function iterateNetwork(activation_function::Function, activation_scale, input, 
     activationMatrix[1, 1:netWidth] = input ## whatever vector gets passed as the initial response
     for i in 2:netDepth ## Iterating over each layer
         for j in 1:netWidth ## iterating over each node
-            activationMatrix[i,j] = calcOj(activation_function, activation_scale, j, i, activationMatrix, Wm, Wb)
+            activationMatrix[i,j] = calcOj(activationFunction, activationScale, j, i, activationMatrix, Wm, Wb)
         end
     end
     return activationMatrix
@@ -84,7 +84,7 @@ end
 ## Need to generate N(g(i)) - R(g(i))
 ## this function measures the fit of the network versus the chosen legendre polynomial 
 
-function measureNetwork(activation_function, activation_scale, polynomialDegree, network)
+function measureNetwork(activationFunction, activationScale, polynomialDegree, network)
     Wm, Wb = network
     netDepth, netWidth = size(Wb)
     x = 0
@@ -102,7 +102,7 @@ function measureNetwork(activation_function, activation_scale, polynomialDegree,
         ## but this makes the code functionally similar to what has been used previously
         ## Importantly, networks of width 1 should behave as they have in previous versions of the model
 
-        N_i = last((iterateNetwork(activation_function, activation_scale, input, network, activationMatrix))[netDepth])
+        N_i = last((iterateNetwork(activationFunction, activationScale, input, network, activationMatrix))[netDepth])
         R_i = PlNormalized(i, polynomialDegree, 0, 1)
         # print(" N_i = $N_i   |   R_i = $R_i   |  N - R = $(N_i - R_i) \n")
         x += abs(N_i - R_i) ## This is different from Le Nagard et al, as they merely summed the difference rather than the absolute value
@@ -112,11 +112,11 @@ function measureNetwork(activation_function, activation_scale, polynomialDegree,
     return x
 end
 
-function fitness(activation_function, activation_scale, K, polynomialDegree, network)
+function fitness(activationFunction, activationScale, K, polynomialDegree, network)
     Wm, Wb = network
     Var_F = var(collect([PlNormalized(i, polynomialDegree, 0, 1) for i in -1:0.02:1]))
-    # return exp((-K * (measureNetwork(activation_function, activation_scale, polynomialDegree, network))^2) / (100*Var_F)) ## With Squared measure
-    return exp((-K * (measureNetwork(activation_function, activation_scale, polynomialDegree, network))) / (100*Var_F))
+    # return exp((-K * (measureNetwork(activationFunction, activationScale, polynomialDegree, network))^2) / (100*Var_F)) ## With Squared measure
+    return exp((-K * (measureNetwork(activationFunction, activationScale, polynomialDegree, network))) / (100*Var_F))
 end
 
 ## Testing the functions as I go
@@ -177,7 +177,7 @@ end
 
 ## Samples the final network at the end of each replicate simulation
 ## plots it relative to the predicted value
-function plotResponseCurves(activation_function, activation_scale, polyDegree, simulationResults)
+function plotResponseCurves(activationFunction, activationScale, polyDegree, simulationResults)
 
     netDepth, netWidth = size(simulationResults[3][1][2])
     titleStr = string("Network response for a $(netDepth) layer network with $netWidth nodes")
@@ -193,7 +193,7 @@ function plotResponseCurves(activation_function, activation_scale, polyDegree, s
             LayerOutputs = zeros(Float64, size(network[2])) ## size of the bias vector
             input = fill(0.0, netWidth)
             input[1] = i
-            push!(responseCurveValues, last(iterateNetwork(activation_function, activation_scale, input, network, LayerOutputs)[netDepth]))
+            push!(responseCurveValues, last(iterateNetwork(activationFunction, activationScale, input, network, LayerOutputs)[netDepth]))
         end
         plt = plot!(-1:0.02:1, responseCurveValues, alpha = 0.5)
     end

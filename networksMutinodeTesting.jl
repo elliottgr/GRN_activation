@@ -30,7 +30,7 @@ function generateOldNetwork(wideNetwork)
     narrowW_b = zeros(Float64, netDepth)
     for layer in 1:netDepth
         narrowW_b[layer] = wideW_b[layer][1] ## taking the top node in each layer
-        for iterLayer in 1:layer
+        for iterLayer in 1:netDepth
             narrowW_m[iterLayer, layer] = wideW_m[iterLayer][layer]
         end
     end
@@ -43,7 +43,7 @@ function testOldCalcOj(activationFunction::Function, activationScale::Float64, n
     ## need to unpack new W_m format into old format
     prev_out = fill(0.0, netDepth) ## blank N node input
     prev_out[1] = testInput ## probably a way to do this in one line lol
-    oldCalcOj(activationFunction, activationScale, calcLayer, prev_out, W_m_fixed, W_b)
+    oldCalcOj(activationFunction, activationScale, calcLayer, prev_out, W_m, W_b)
 end
 
 function testNewCalcOj(activationFunction::Function, activationScale::Float64, network, testInput = 0.0, calcLayer = 1, calcNode = 1)
@@ -53,6 +53,7 @@ function testNewCalcOj(activationFunction::Function, activationScale::Float64, n
     testInputVector = zeros(Float64, netWidth)
     testInputVector[1] = testInput
     activationMatrix[1, 1:netWidth] = testInputVector
+    print(activationMatrix)
     calcOj(activationFunction, activationScale, calcNode, calcLayer, activationMatrix, W_m, W_b)
 end
 
@@ -63,17 +64,19 @@ function compareCalcOj(activationFunction, activationScale, netDepth, netWidth, 
     if typeof(val) == Float64
         newNetwork = generateFilledNetwork(netDepth, netWidth, val)
     else
-        network = generateNetwork(netDepth, netWidth)
+        newNetwork = generateNetwork(netDepth, netWidth)
     end
     oldNetwork = generateOldNetwork(newNetwork)
     print(newNetwork, "\n")
     print(oldNetwork, "\n")
     for layer in 1:netDepth
         for input in inputRange
-            if testOldCalcOj(activationFunction, activationScale, oldNetwork, input, layer) != testNewCalcOj(activationFunction, activationScale, newNetwork, input, layer, calcNode)
-                print(layer, "   ", input, "\n")
-                return false
-            end 
+            oldCalcOjVal = testOldCalcOj(activationFunction, activationScale, oldNetwork, input, layer)
+            newCalcOjVal= testNewCalcOj(activationFunction, activationScale, newNetwork, input, layer, calcNode)
+            # if oldCalcOjVal != oldCalcOjVal 
+                print("Layer : $layer  ||  Input : $input \n  Old : $oldCalcOjVal  || New : $newCalcOjVal \n")
+                # return false
+            # end 
         end   
     end
     return true
@@ -81,7 +84,7 @@ end
 
 netDepth = 2
 netWidth = 1
-compareCalcOj(activationFunction, activationScale, netDepth, netWidth, calcNode, inputRange, 0.0)
+compareCalcOj(activationFunction, activationScale, netDepth, netWidth, calcNode, [1], "no")
 
 function oldIterateNetwork(activationFunction::Function, activationScale, input, network, prev_out)
     ##############################
@@ -97,33 +100,39 @@ function oldIterateNetwork(activationFunction::Function, activationScale, input,
 end
 
 
-function testOldIterateNetwork(activationFunction::Function, activationScale, netDepth, netWidth, netWeights, testInput)
-    W_m = fill(netWeights, (netDepth,netDepth))
-    W_b = fill(netWeights, netDepth)
+function testOldIterateNetwork(activationFunction::Function, activationScale, network, testInput)
     prev_out = fill(0.0, netDepth) ## blank N node input
     prev_out[1] = testInput ## probably a way to do this in one line lol
-    oldIterateNetwork(activationFunction, activationScale, testInput, [W_m, W_b], prev_out)
+    oldIterateNetwork(activationFunction, activationScale, testInput, generateOldNetwork(network), prev_out)
 end
 
-function testNewIterateNetwork(activationFunction, activationScale, netDepth, netWidth, netWeights, testInput)
-    W_m, W_b = generateFilledNetwork(netDepth, netWidth, netWeights)
+function testNewIterateNetwork(activationFunction, activationScale, network, testInput)
+    # W_m, W_b = generateFilledNetwork(netDepth, netWidth, netWeights)
     activationMatrix = zeros(Float64, (netDepth, netWidth))
     testInputVector = zeros(Float64, netWidth)
     testInputVector[1] = testInput
     activationMatrix[1, 1:netWidth] = testInputVector
-    iterateNetwork(activationFunction, activationScale, testInputVector, [W_m, W_b], activationMatrix)
+    iterateNetwork(activationFunction, activationScale, testInputVector, network, activationMatrix)
 end
 
-function compareIterateNetwork(activationFunction, activationScale, netDepth, netWidth, weightRange, inputRange)
+function compareIterateNetwork(activationFunction, activationScale, netDepth, netWidth, val, inputRange)
+    if typeof(val) == Float64
+        network = generateFilledNetwork(netDepth, netWidth, val)
+    else
+        network = generateNetwork(netDepth, netWidth)
+    end
     for i in inputRange
-        for w in weightRange
-            if testOldIterateNetwork(activationFunction, activationScale, netDepth, netWidth, w, i) != vec(testNewIterateNetwork(activationFunction, activationScale, netDepth, netWidth, w, i))
-                return false
-            end
+        oldIterateNetworkVal = testOldIterateNetwork(activationFunction, activationScale, network, i)
+        newIterateNetworkVal = vec(testNewIterateNetwork(activationFunction, activationScale, network, i))
+        print("Input : $i  ||  New : $newIterateNetworkVal  ||  Old : $oldIterateNetworkVal \n")
+        if oldIterateNetworkVal != newIterateNetworkVal
+            return false
         end
     end
     return true
 end
+
+compareIterateNetwork(activationFunction, activationScale, netDepth, netWidth, "f", collect(randn((samples))))
 
 function oldMeasureNetwork(activationFunction, activationScale, polynomialDegree, network)
     x = 0
@@ -151,10 +160,35 @@ function testMeasureNetwork(activationFunction, activationScale, polyDegree)
     return true
 end
 
+
+function generateResponseCurves(activationFunction, activationScale, netDepth, netWidth, curves = 5)
+    plt = plot()
+    inputRange = -1:0.02:1
+    for _ in 1:curves
+        newNetVals = []
+        oldNetVals = []
+        newNetwork = generateNetwork(netDepth, netWidth)
+        oldNetwork = generateOldNetwork(newNetwork)
+        for i in inputRange
+            LayerOutputs = zeros(Float64, (netDepth, netWidth)) ## size of the bias vector
+            input = fill(0.0, netWidth)
+            input[1] = i
+            prevOut = fill(0.0, netDepth)
+            push!(newNetVals, last(iterateNetwork(activationFunction, activationScale, input, newNetwork, LayerOutputs)[netDepth]))
+            push!(oldNetVals, last(oldIterateNetwork(activationFunction, activationScale, i, oldNetwork, prevOut)))
+        end
+        plot!(inputRange, newNetVals)
+        plot!(inputRange, oldNetVals, linestyle = :dash)
+        # end
+    end
+    return plt
+end
+
+generateResponseCurves(activationFunction, activationScale, netDepth, netWidth, 5)
 activationFunction = (f(x) = (1 - exp(-x^2))) 
 activationScale = 1.0
 netDepth = 5
-netWidth = 2
+netWidth = 1
 netWeights = 0.0
 polyDegree = 3
 
@@ -174,5 +208,5 @@ compareCalcOj(activationFunction, activationScale, netDepth, netWidth, calcLayer
 
 
 ## These checks should come back true if the networks are of width = 1, but false otherwise
-compareIterateNetwork(activationFunction, activationScale, netDepth, netWidth, collect(randn((samples))), collect(randn((samples))))
+compareIterateNetwork(activationFunction, activationScale, netDepth, netWidth, "f", collect(randn((samples))))
 testMeasureNetwork(activationFunction, activationScale, polyDegree)

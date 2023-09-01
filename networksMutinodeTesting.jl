@@ -9,7 +9,6 @@ function oldCalcOj(activationFunction::Function, activationScale::Float64, j::In
     ##############################
     ## dot product of Wm and prev_out, + node weights. Equivalent to x = dot(Wm[1:j,j], prev_out[1:j]) + Wb[j]
     ## doing it this way allows scalar indexing of the static arrays, which is significantly faster and avoids unnecessary array invocation
-    netDepth, netWidth = size(Wb)
     x = 0
     for i in 1:j-1
         x += (Wm[i, j] * prev_out[i])  
@@ -18,20 +17,30 @@ function oldCalcOj(activationFunction::Function, activationScale::Float64, j::In
     return(activationFunction(activationScale * x)) 
 end
 
-function testOldCalcOj(activationFunction::Function, activationScale::Float64, network, testInput = 0.0, calcLayer = 1)
-    W_m, W_b = network
-    netDepth, netWidth = size(W_b)
+
+## Takes the generalized version of the networks used here and converts it back
+## to the old linear version. Using the prefixes wide and narrow to keep things clear in this function
+## if the wideNetwork has width >1, it merely takes the top-most node in each layer to generate the new network
+function generateOldNetwork(wideNetwork)
+    wideW_m, wideW_b = wideNetwork
+    netDepth, netWidth = size(wideW_b)
+
     ## need to unpack new W_m format into old format
-    W_m_fixed = zeros(Float64, (netDepth, netDepth))
+    narrowW_m = zeros(Float64, (netDepth, netDepth))
+    narrowW_b = zeros(Float64, netDepth)
     for layer in 1:netDepth
+        narrowW_b[layer] = wideW_b[layer][1] ## taking the top node in each layer
         for iterLayer in 1:layer
-            W_m_fixed[iterLayer, layer] = W_m[iterLayer][layer]
+            narrowW_m[iterLayer, layer] = wideW_m[iterLayer][layer]
         end
     end
-    # print(W_m)
-    # print(W_m_fixed)
-    print(W_m_fixed[3,1:5],"\n")
-    print(W_m[3], "\n")
+    return [narrowW_m, narrowW_b]
+end
+
+function testOldCalcOj(activationFunction::Function, activationScale::Float64, network, testInput = 0.0, calcLayer = 1)
+    W_m, W_b = network
+    netDepth = size(W_b)
+    ## need to unpack new W_m format into old format
     prev_out = fill(0.0, netDepth) ## blank N node input
     prev_out[1] = testInput ## probably a way to do this in one line lol
     oldCalcOj(activationFunction, activationScale, calcLayer, prev_out, W_m_fixed, W_b)
@@ -49,12 +58,19 @@ end
 
 
 ## testing calcOj over a range of weights
-function compareCalcOj(activationFunction, activationScale, netDepth, netWidth, calcNode, inputRange)
+function compareCalcOj(activationFunction, activationScale, netDepth, netWidth, calcNode, inputRange, val)
     # generating randomized networks and reshaping them to see when there will be a difference
-    network = generateNetwork(netDepth, netWidth)
+    if typeof(val) == Float64
+        newNetwork = generateFilledNetwork(netDepth, netWidth, val)
+    else
+        network = generateNetwork(netDepth, netWidth)
+    end
+    oldNetwork = generateOldNetwork(newNetwork)
+    print(newNetwork, "\n")
+    print(oldNetwork, "\n")
     for layer in 1:netDepth
         for input in inputRange
-            if testOldCalcOj(activationFunction, activationScale, network, input, layer) != testNewCalcOj(activationFunction, activationScale, network, input, layer, calcNode)
+            if testOldCalcOj(activationFunction, activationScale, oldNetwork, input, layer) != testNewCalcOj(activationFunction, activationScale, newNetwork, input, layer, calcNode)
                 print(layer, "   ", input, "\n")
                 return false
             end 
@@ -63,8 +79,9 @@ function compareCalcOj(activationFunction, activationScale, netDepth, netWidth, 
     return true
 end
 
+netDepth = 2
 netWidth = 1
-compareCalcOj(activationFunction, activationScale, netDepth, netWidth, calcNode, inputRange)
+compareCalcOj(activationFunction, activationScale, netDepth, netWidth, calcNode, inputRange, 0.0)
 
 function oldIterateNetwork(activationFunction::Function, activationScale, input, network, prev_out)
     ##############################

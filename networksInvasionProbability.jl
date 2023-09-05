@@ -79,8 +79,8 @@ end
 
 ## Testing the network adaptation to the response curves 
 N = 10000 ## N (population size)
-T = 10000 ## T (simulation length)
-reps = 1 ## number of replicates
+T = 50000 ## T (simulation length)
+reps = 2 ## number of replicates
 Φ = (f(x) = (1 - exp(-x^2))) ## Le Nagard's activation function
 # Φ = (f(x) = (1 / (1 + exp(-x)))) ## Logistic / sigmoid
 # Φ = (f(x) = x) ## Linear activation
@@ -89,7 +89,7 @@ reps = 1 ## number of replicates
 K = 5.0 ## K (strength of selection)
 polyDegree = 3 ## degree of the Legendre Polynomial
 netDepth = 4 ## Size of the networks
-netWidth = 1
+netWidth = 3
 μ_size = .1 ## standard deviation of mutation magnitude
 
 simResults = simulate(N, T, reps, Φ, α, K, polyDegree, netDepth, netWidth, μ_size)

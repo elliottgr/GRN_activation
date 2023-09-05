@@ -1,6 +1,6 @@
 ## this file calls simulations of various network sizes to compare how this influences adaptation
 ## Network parameters explored are both the total number of nodes, as well as the distribution of these nodes (width vs depth)
-
+using StatsPlots ## For violin plots
 include("networksInvasionProbability.jl") ## Could probably use the Wright-Fisher version if you wanted, but that would be much slower
 
 ## testing how the size of the network influences the final evolved fitness
@@ -13,13 +13,18 @@ function compareNetworkSize(maxNetSize = 10, N = 10, T = 10, reps = 1, activatio
     ## We only care about the first vector, which is r (# of replicates) different timeseries 
     ## showing the evolutionary history of that parameter set 
     for i in 1:maxNetSize
-        simResults = simulate(N, T, reps, activationFunction, activationScale, K, polyDegree, netDepth, netWidth, μ_size)
+        simResults = simulate(N, T, reps, activationFunction, activationScale, K, polyDegree, i, netWidth, μ_size)
         fitnessHistories[i] = simResults[1]
     end
+    return fitnessHistories
+end
 
+function calculateMeanFitnessHistories(fitnessHistories)
     ## Generating time series of mean fitness at each timestep
     ## Each index in this meanFitnessHistories represents a different iterated net size
-    meanFitnessHistories = Array{Vector}(undef, maxNetSize)
+    meanFitnessHistories = Array{Vector}(undef, length(fitnessHistories)) 
+    reps = length(fitnessHistories[1])
+    T = length(fitnessHistories[1][1])
     for i in 1:maxNetSize
         meanFitnessHistories[i] = Array{Float64}(undef, T)
         for t in 1:T
@@ -29,13 +34,38 @@ function compareNetworkSize(maxNetSize = 10, N = 10, T = 10, reps = 1, activatio
             end
             meanFitnessHistories[i][t] = x/reps
         end
-        
     end
-    plot(meanFitnessHistories)
+    return meanFitnessHistories
+end
+
+function fitnessHistoryTimeSeries(meanFitnessHistories)
+    ## comparison of time series
+    labels = permutedims([string("NetSize ", x) for x in 1:length(fitnessHistories)][:,:])
+    plt = plot()
+    plot!(plt, meanFitnessHistories, label = labels) 
+    return plt
+end
+
+function fitnessHistoryViolinPlot(fitnessHistories)
+    ## selecting the final timestep of each replicates
+    finalFitnesses = Array{Vector}(undef, length(fitnessHistories)) 
+    for i in 1:length(fitnessHistories)
+        replicateFitnesses = Array{Float64}(undef, length(fitnessHistories[1]))
+        for r in 1:length(fitnessHistories[1])
+            replicateFitnesses[r] = last(fitnessHistories[i][r])
+        end
+        finalFitnesses[i] = replicateFitnesses
+    end
+    plt = plot()
+    labels = permutedims([string("NetSize ", x) for x in 1:length(fitnessHistories)][:,:])
+    plt = violin(2:length(finalFitnesses), finalFitnesses[2:length(finalFitnesses)], label = labels)
 end
 
 maxNetSize = 5
-N = 10000
-T = 10000
-reps = 5
-compareNetworkSize(maxNetSize, N, T, reps)
+N = 1000
+T = 100
+reps = 10
+fitnessHistories = compareNetworkSize(maxNetSize, N, T, reps)
+meanFitnessHistories = calculateMeanFitnessHistories(fitnessHistories)
+fitnessHistoryTimeSeries(meanFitnessHistories)
+fitnessHistoryViolinPlot(fitnessHistories)

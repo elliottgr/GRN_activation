@@ -141,8 +141,6 @@ function measureNetwork(activationFunction, activationScale, polynomialDegree, n
         N_i = activationMatrix[netDepth, netWidth]
         R_i = PlNormalized(i, polynomialDegree, 0, 1)
         # print(" N_i = $N_i   |   R_i = $R_i   |  N - R = $(N_i - R_i) \n")
-        #x += abs(N_i - R_i) ## This is different from Le Nagard et al, as they merely summed the difference rather than the absolute value
-        # x += N_i - R_i ## Le Nagard's method
         x += (N_i - R_i) ^2
     end
     return x

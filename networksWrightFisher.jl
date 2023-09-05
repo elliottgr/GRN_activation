@@ -8,7 +8,7 @@ using  Plots, Random, Distributions
 include("networksFuncs.jl") ## loading formulas
 
 ## Define population of N networks
-function simulate(N = 10, T = 10, reps = 1, Φ = (f(x) = (1-exp(-x^2))), α = 1.0, K = 5.0, polyDegree = 1, netDepth = 5, netWidth=6, μ = 0.01, μ_size = .1)
+function simulate(N = 10, T = 10, reps = 1, activationFunction = (f(x) = (1-exp(-x^2))), activationScale = 1.0, K = 5.0, polyDegree = 1, netDepth = 5, netWidth=6, μ = 0.01, μ_size = .1)
 
     ##Iterating over all replicates
     meanFitnessReps = fill([], reps)
@@ -23,7 +23,7 @@ function simulate(N = 10, T = 10, reps = 1, Φ = (f(x) = (1-exp(-x^2))), α = 1.
         meanFitness = zeros(Float64, T)
         varFitness = zeros(Float64, T)
         for t in 1:T
-            population, fitnessScores = timestep(population, Φ, α, K, polyDegree, μ, μ_size)
+            population, fitnessScores = timestep(population, activationFunction, activationScale, K, polyDegree, μ, μ_size)
             meanFitness[t] = mean(fitnessScores)
             varFitness = var(meanFitness)
         end
@@ -33,7 +33,7 @@ function simulate(N = 10, T = 10, reps = 1, Φ = (f(x) = (1-exp(-x^2))), α = 1.
         ## sorting the networks and finding the highest fitness network in the population to return
         maxFitness = 0
         for network in population
-            if fitness(Φ, α, K, polyDegree, network) > maxFitness
+            if fitness(activationFunction, activationScale, K, polyDegree, network) > maxFitness
                 finalNetworks[r] = network
             end
         end
@@ -41,7 +41,7 @@ function simulate(N = 10, T = 10, reps = 1, Φ = (f(x) = (1-exp(-x^2))), α = 1.
     return [meanFitnessReps, varFitnessReps, finalNetworks]
 end
 
-function timestep(population, activation_function, activation_scale, K, polyDegree, μ, μ_size)
+function timestep(population, activationFunction, activationScale, K, polyDegree, μ, μ_size)
 
     N = length(population)
     netDepth, netWidth = size(population[1])
@@ -49,7 +49,7 @@ function timestep(population, activation_function, activation_scale, K, polyDegr
     ## find fitness of each member of population
     fitnessScores = zeros(Float64, N)
     for i in 1:N
-        fitnessScores[i] = fitness(activation_function, activation_scale, K, polyDegree, population[i])
+        fitnessScores[i] = fitness(activationFunction, activationScale, K, polyDegree, population[i])
     end
   
     ## Code for simulating reproduction
@@ -82,17 +82,17 @@ end
 N = 10 ## N (population size)
 T = 250 ## T (simulation length)
 reps = 5 ## number of replicates
-Φ = (f(x) = (1 - exp(-x^2))) ## Le Nagard's activation function
-# Φ = (f(x) = (1 / (1 + exp(-x)))) ## Logistic / sigmoid
-# Φ = (f(x) = x) ## Linear activation
-# Φ = (f(x) = maximum([0.0, x])) ## ReLU
-α = 1.0 ## α (activation coefficient)
+activationFunction = (f(x) = (1 - exp(-x^2))) ## Le Nagard's activation function
+# activationFunction = (f(x) = (1 / (1 + exp(-x)))) ## Logistic / sigmoid
+# activationFunction = (f(x) = x) ## Linear activation
+# activationFunction = (f(x) = maximum([0.0, x])) ## ReLU
+activationScale = 1.0 ## activationScale (activation coefficient)
 K = 5.0 ## K (strength of selection)
 polyDegree = 2 ## degree of the Legendre Polynomial
 netDepth = 5 ## Size of the networks
 netWidth = 6
 μ_size = .1 ## standard deviation of mutation magnitude
 
-simResults = simulate(N, T, reps, Φ, α, K, polyDegree, netDepth, netWidth, μ_size)
+simResults = simulate(N, T, reps, activationFunction, activationScale, K, polyDegree, netDepth, netWidth, μ_size)
 plotReplicatesFitness(simResults)
-plotResponseCurves(Φ, α, polyDegree, simResults)
+plotResponseCurves(activationFunction, activationScale, polyDegree, simResults)

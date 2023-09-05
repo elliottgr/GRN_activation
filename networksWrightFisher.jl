@@ -13,7 +13,7 @@ function simulate(N = 10, T = 10, reps = 1, Φ = (f(x) = (1-exp(-x^2))), α = 1.
     ##Iterating over all replicates
     meanFitnessReps = fill([], reps)
     varFitnessReps = fill(0.0, reps)
-    finalNetworks = [[fill(fill(0.0, (netDepth, netWidth)), (netDepth, netWidth)), zeros(Float64, (netDepth, netWidth))] for _ in 1:reps]
+    finalNetworks = [generateFilledNetwork(netDepth, netWidth, 0.0) for _ in 1:reps]
     for r in 1:reps
         parentNetwork = generateNetwork(netDepth, netWidth)
         population = []
@@ -44,7 +44,7 @@ end
 function timestep(population, activation_function, activation_scale, K, polyDegree, μ, μ_size)
 
     N = length(population)
-    netDepth, netWidth = size(population[1][2])
+    netDepth, netWidth = size(population[1])
 
     ## find fitness of each member of population
     fitnessScores = zeros(Float64, N)
@@ -56,12 +56,13 @@ function timestep(population, activation_function, activation_scale, K, polyDegr
     ## Should weight selection based on relative fitness
     ## Iterating over a blank population, seems to produce less errors? 
 
-    newPop = fill([fill(fill(0.0, (netDepth, netWidth)), (netDepth, netWidth)), zeros(Float64, (netDepth, netWidth))], N)
+    # newPop = fill([fill(fill(0.0, (netDepth, netWidth)), (netDepth, netWidth)), zeros(Float64, (netDepth, netWidth))], N)
+    newPop = fill(generateFilledNetwork(netDepth, netWidth, 0.0), N)
     for i in 1:N
         newPop[i] = population[wsample(collect(1:N), fitnessScores)]
     end
 
-    ## Mutate based on some parameters
+    ## Mutate based on some parameter
     
     ## Le Nagard Method
     ## samples a random weight and shifts it
@@ -78,9 +79,9 @@ function timestep(population, activation_function, activation_scale, K, polyDegr
 end
 
 ## Testing the network adaptation to the response curves 
-N = 100 ## N (population size)
+N = 10 ## N (population size)
 T = 250 ## T (simulation length)
-reps = 10 ## number of replicates
+reps = 5 ## number of replicates
 Φ = (f(x) = (1 - exp(-x^2))) ## Le Nagard's activation function
 # Φ = (f(x) = (1 / (1 + exp(-x)))) ## Logistic / sigmoid
 # Φ = (f(x) = x) ## Linear activation

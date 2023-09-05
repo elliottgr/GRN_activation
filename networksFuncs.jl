@@ -233,7 +233,7 @@ end
 ## plots it relative to the predicted value
 function plotResponseCurves(activationFunction, activationScale, polyDegree, simulationResults)
 
-    netDepth, netWidth = size(simulationResults[3][1][2])
+    netDepth, netWidth = size(simulationResults[3][1])
     titleStr = string("Network response for a $(netDepth) layer network with $netWidth nodes")
     
     ## Plotting the polynomial curve
@@ -244,7 +244,7 @@ function plotResponseCurves(activationFunction, activationScale, polyDegree, sim
         valueRange = collect(-1:0.02:1) ## the range of input values the networks measure against
         responseCurveValues = []
         for i in valueRange
-            LayerOutputs = zeros(Float64, size(network[2])) ## size of the bias vector
+            LayerOutputs = zeros(Float64, size(network)) ## size of the bias vector
             input = fill(0.0, netWidth)
             input[1] = i
             push!(responseCurveValues, last(iterateNetwork!(activationFunction, activationScale, input, network, LayerOutputs)[netDepth]))

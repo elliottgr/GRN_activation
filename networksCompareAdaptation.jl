@@ -62,6 +62,7 @@ function fitnessHistoryViolinPlot(fitnessHistories)
 end
 
 maxNetSize = 5
+maxNetWidth = 5
 N = 1000
 T = 100
 reps = 10

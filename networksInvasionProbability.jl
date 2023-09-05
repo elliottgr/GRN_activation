@@ -70,21 +70,23 @@ function simulate(N = 10, T = 10, reps = 1, activationFunction = (f(x) = (1-exp(
     return [fitnessHistories, invasionProbabilities, finalNetworks]
 end
 
-## Testing the network adaptation to the response curves 
-N = 10000 ## N (population size)
-T = 50000 ## T (simulation length)
-reps = 2 ## number of replicates
-activationFunction = (f(x) = (1 - exp(-x^2))) ## Le Nagard's activation function
-# activationFunction = (f(x) = (1 / (1 + exp(-x)))) ## Logistic / sigmoid
-# activationFunction = (f(x) = x) ## Linear activation
-# activationFunction = (f(x) = maximum([0.0, x])) ## ReLU
-activationScale = 1.0 ## activationScale (activation coefficient)
-K = 5.0 ## K (strength of selection)
-polyDegree = 3 ## degree of the Legendre Polynomial
-netDepth = 4 ## Size of the networks
-netWidth = 3
-μ_size = .1 ## standard deviation of mutation magnitude
+## Testing the network adaptation and the response curves 
+## This section is for debugging the main simulation loops
 
-simResults = simulate(N, T, reps, activationFunction, activationScale, K, polyDegree, netDepth, netWidth, μ_size)
-plotReplicatesFitness(simResults)
-plotResponseCurves(activationFunction, activationScale, polyDegree, simResults)
+# N = 10000 ## N (population size)
+# T = 50000 ## T (simulation length)
+# reps = 2 ## number of replicates
+# activationFunction = (f(x) = (1 - exp(-x^2))) ## Le Nagard's activation function
+# # activationFunction = (f(x) = (1 / (1 + exp(-x)))) ## Logistic / sigmoid
+# # activationFunction = (f(x) = x) ## Linear activation
+# # activationFunction = (f(x) = maximum([0.0, x])) ## ReLU
+# activationScale = 1.0 ## activationScale (activation coefficient)
+# K = 5.0 ## K (strength of selection)
+# polyDegree = 3 ## degree of the Legendre Polynomial
+# netDepth = 4 ## Size of the networks
+# netWidth = 3
+# μ_size = .1 ## standard deviation of mutation magnitude
+
+# simResults = simulate(N, T, reps, activationFunction, activationScale, K, polyDegree, netDepth, netWidth, μ_size)
+# plotReplicatesFitness(simResults)
+# plotResponseCurves(activationFunction, activationScale, polyDegree, simResults)

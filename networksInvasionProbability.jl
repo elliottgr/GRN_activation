@@ -4,33 +4,33 @@ using Plots
 include("networksFuncs.jl") ## taking formulas 
 
 ## Equivalent to Eq. 5, P(f_0 -> f_i), in le Nagard (2011)
-function invasionProbability(activation_function, activation_scale, K, polynomialDegree, N, residentNetwork, mutantNetwork)
+function invasionProbability(activation_function, activation_scale, K, polynomialDegree, N, resNet::Network, mutNet::Network)
 
-    resFitness = fitness(activation_function, activation_scale, K, polynomialDegree, residentNetwork)
-    mutFitness = fitness(activation_function, activation_scale, K, polynomialDegree, mutantNetwork)
+    resFitness = fitness(activation_function, activation_scale, K, polynomialDegree, resNet)
+    mutFitness = fitness(activation_function, activation_scale, K, polynomialDegree, mutNet)
     fitnessRatio =  resFitness / mutFitness
 
     ## A few conditional statements broken down for debugging and dodging NaNs
     if mutFitness == 0.0
-        out = 0.0
+        fixp = 0.0
     else
         num = 1 - (fitnessRatio)^2
-        den = 1 - ((fitnessRatio)^(2*N))
-        if num == den
-            out = 0.0 ## clones cannot invade
+        den = 1 - (fitnessRatio)^(2*N)
+        #JVC: the sim is designed not to have clones so need need to avoid this. 
+        #JVC: also, you may want to allow truly neutral genotypes to invade via drift.
+        if fitnessRatio == 1.0
+            fixp = 1 / (2*N)
         else
-            out = num/den
+            fixp = num/den
         end
          ## Debugging, will flood the console but prints all fitness tests
-        # print("resFit : $resFitness  |  mutFit : $mutFitness  | fitnessRatio :  $fitnessRatio  |  Num : $num  |  Den : $den  |  Prob : $out \n")
+        #print("resFit : $resFitness  |  mutFit : $mutFitness  | fitnessRatio :  $fitnessRatio  |  Num : $num  |  Den : $den  |  Prob : $fixp \n")
     end
-    if isnan(out) == true
+    if isnan(fixp)
         print("oh no")
-        # return 0.0
-        return out
-    else
-        return out
     end
+
+    return fixp, resFitness, mutFitness
 end
 
 ## Parameters:
@@ -47,30 +47,32 @@ function simulate(N = 10, T = 10, reps = 1, Φ = (f(x) = (1-exp(-x^2))), α = 1.
     finalNetworks = [generateFilledNetwork(netDepth, netWidth, 0.0) for _ in 1:reps]
     for r in 1:reps
         resNet = generateNetwork(netDepth, netWidth) ## Initial resident network
+        mutNet = copy(resNet)
+
         ## Main timestep loop
         probableInvasions = 0
         actualInvasions = 0
         for t in 1:T
-            mutNet = mutateNetwork(μ_size, copy(resNet))
-            invasionProb = invasionProbability(Φ, α, K, polyDegree, N, resNet, mutNet)
+            copy!(mutNet, resNet)
+            mutateNetwork!(μ_size, mutNet)
+
+            invasionProb, resFitness, mutFitness = invasionProbability(Φ, α, K, polyDegree, N, resNet, mutNet)
             invasionProbabilities[r][t] = invasionProb
-            if fitness(resNet) <= fitness(mutNet)
+            
+            if resFitness <= mutFitness
                 probableInvasions += 1
             end
 
             if rand() <= invasionProb
-                resNet = mutNet
+                copy!(resNet, mutNet)
                 actualInvasions += 1
-            end
-            fitnessHistories[r][t] = fitness(Φ, α, K, polyDegree, resNet)
+                fitnessHistories[r][t] = mutFitness
+            else
+                fitnessHistories[r][t] = resFitness
+            end            
         end
 
-        ## have to copy each index because of array rules
-        finalNetwork = generateFilledNetwork(netDepth, netWidth, 0.0)
-        for i in eachindex(resNet)
-            finalNetwork[i] = copy(resNet[i])
-        end
-        finalNetworks[r] = resNet
+        copy!(finalNetworks[r], resNet)
     end
     return [fitnessHistories, invasionProbabilities, finalNetworks]
 end
@@ -85,8 +87,8 @@ reps = 1 ## number of replicates
 # Φ = (f(x) = maximum([0.0, x])) ## ReLU
 α = 1.0 ## α (activation coefficient)
 K = 5.0 ## K (strength of selection)
-polyDegree = 1 ## degree of the Legendre Polynomial
-netDepth = 3 ## Size of the networks
+polyDegree = 3 ## degree of the Legendre Polynomial
+netDepth = 4 ## Size of the networks
 netWidth = 1
 μ_size = .1 ## standard deviation of mutation magnitude
 

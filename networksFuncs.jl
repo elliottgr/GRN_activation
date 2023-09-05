@@ -5,6 +5,7 @@
 ## Statistics is used to quickly calculate variance for the fitness function
 ## StatsBase is used for sampling when calculating which weight to mutate
 using LegendrePolynomials, Statistics, StatsBase
+import Base: copy, copy!, (==), size
 
 ## Generates a randomized network containing 
 ## netDepth = layers of network
@@ -14,21 +15,57 @@ using LegendrePolynomials, Statistics, StatsBase
 ## Each submatrix (k, l) contains a float that characterizes the weight from nodes (k, l) -> (i, j)
 ## W_b is a matrix for the activation bias of node (i, j)
 
-function generateNetwork(netDepth, netWidth)
-    Wm = fill(Matrix{Float64}(undef, (netDepth, netWidth)), (netDepth, netWidth))
-    for ij in eachindex(Wm)
-        Wm[ij] = rand(Float64, (netDepth, netWidth)) ## generates each as a unique random matrix. Doing it in one line doesn't work afaik
+##JVC: Probably save some hassle by using a struct for the network and defining exactly how copies are made, etc.
+struct Network
+    Wm::Matrix{Matrix{Float64}}
+    Wb::Matrix{Float64}
+
+    function Network(Wm::Matrix{Matrix{Float64}}, Wb::Matrix{Float64})
+        netDepth, netWidth = size(Wm)
+        if size(Wb) != (netDepth, netWidth)
+            throw(ArgumentError("Wm and Wb must have the same width and depth"))
+        end
+        new(Wm, Wb)
     end
-    Wb = rand(Float64, (netDepth, netWidth))
-    return [Wm, Wb]
+end
+
+## Network methods
+(==)(x::Network, y::Network) = (x.Wm == y.Wm && x.Wb == y.Wb)
+size(x::Network) = size(x.Wb)
+
+function copy(src::Network)
+    Wm = hcat([[copy(src.Wm[i,j]) for i in axes(src.Wm)[1]] for j in axes(src.Wm)[2]]...)
+    return Network(Wm, copy(src.Wb))
+end
+
+function copy!(dest::Network, src::Network)
+    if (size(dest) != size(src))
+        throw(ArgumentError("Networks must be the same size"))
+    end
+    
+    for i in axes(src.Wm)[1]
+        for j in axes(src.Wm)[2]
+            dest.Wm[i,j] .= src.Wm[i,j]
+        end
+    end
+    dest.Wb .= src.Wb
+end
+
+function generateNetwork(netDepth, netWidth)
+    Wm = hcat([[rand(netDepth, netWidth) for i in 1:netDepth] for j in 1:netWidth]...)
+    Wb = rand(netDepth, netWidth)
+
+    return Network(Wm, Wb)
 end
 
 function generateFilledNetwork(netDepth, netWidth,val::Float64)
-    return [fill(fill(val, (netDepth, netWidth)), (netDepth, netWidth)), fill(val, (netDepth, netWidth))]
+    Wm = hcat([[fill(val, (netDepth, netWidth)) for i in 1:netDepth] for j in 1:netWidth]...)
+    Wb = fill(val, (netDepth, netWidth))
+    
+    return Network(Wm, Wb)
 end
 
 ## calcOj calculates the value of a single node j in layer i
-
 function calcOj(activationFunction::Function, activationScale::Float64, j::Int, i::Int, activationMatrix, Wm, Wb)
     netWidth = size(Wb)[2]
     x = 0 ## activation
@@ -47,16 +84,16 @@ end
 ## is the gradient iterator, g(i) = -1 + (2 * i/100)
 ## Here I'm just using it as an input range 
 ## N(g(i)) is just the network evaluation at some g(i) 
-## Still calling the function iterateNetwork for clarity, originally taken from socialGRN project
+## Still calling the function iterateNetwork! for clarity, originally taken from socialGRN project
 
-function iterateNetwork(activationFunction::Function, activationScale, input, network, activationMatrix)
+function iterateNetwork!(activationFunction::Function, activationScale, input, network::Network, activationMatrix)
 
     ## Calculates the total output of the network,
     ## iterating over calcOj() for each node
 
-    Wm, Wb = network
-    netDepth, netWidth = size(Wb)
-    activationMatrix[1, 1:netWidth] = input ## whatever vector gets passed as the initial response
+    Wm, Wb = network.Wm, network.Wb
+    netDepth, netWidth = size(network)
+    activationMatrix[1, :] = input ## whatever vector gets passed as the initial response
     for i in 2:netDepth ## Iterating over each layer
         for j in 1:netWidth ## iterating over each node
             activationMatrix[i,j] = calcOj(activationFunction, activationScale, j, i, activationMatrix, Wm, Wb)
@@ -75,21 +112,19 @@ end
 ## since the polynomials are already fixed to [-1, 1], we can 
 ## easily rescale it to any input/output. Le Nagard et al used [.1, .9] as their interval
 function PlNormalized(x, l, min, max)
-    a = (max - min) / 2
-    b = 1 - (a)
-    return (a * Pl(x, l)) + b
+    r = (max - min) / 2
+    return r * (Pl(x, l) + 1) + min
 end
 
 ## Fitness Evaluation of network
 ## Need to generate N(g(i)) - R(g(i))
 ## this function measures the fit of the network versus the chosen legendre polynomial 
 
-function measureNetwork(activationFunction, activationScale, polynomialDegree, network)
-    Wm, Wb = network
-    netDepth, netWidth = size(Wb)
+function measureNetwork(activationFunction, activationScale, polynomialDegree, network::Network, envRange)
+    netDepth, netWidth = size(network)
     x = 0
-    for i in -1:0.02:1
-        activationMatrix = zeros(Float64, size(network[2])) ## size of the bias vector
+    for i in envRange
+        activationMatrix = zeros(netDepth, netWidth) ## size of the bias vector
 
         ## Network input is simply a vector containing a single element in the first position
         ## this allows for expanding to more complex problem dimensions later
@@ -102,41 +137,40 @@ function measureNetwork(activationFunction, activationScale, polynomialDegree, n
         ## but this makes the code functionally similar to what has been used previously
         ## Importantly, networks of width 1 should behave as they have in previous versions of the model
 
-        N_i = last((iterateNetwork(activationFunction, activationScale, input, network, activationMatrix))[netDepth])
+        iterateNetwork!(activationFunction, activationScale, input, network, activationMatrix)
+        N_i = activationMatrix[netDepth, netWidth]
         R_i = PlNormalized(i, polynomialDegree, 0, 1)
         # print(" N_i = $N_i   |   R_i = $R_i   |  N - R = $(N_i - R_i) \n")
-        x += abs(N_i - R_i) ## This is different from Le Nagard et al, as they merely summed the difference rather than the absolute value
+        #x += abs(N_i - R_i) ## This is different from Le Nagard et al, as they merely summed the difference rather than the absolute value
         # x += N_i - R_i ## Le Nagard's method
-        # x += (N_i - R_i) ^2
+        x += (N_i - R_i) ^2
     end
     return x
 end
 
 function fitness(activationFunction, activationScale, K, polynomialDegree, network)
-    Wm, Wb = network
-    Var_F = var(collect([PlNormalized(i, polynomialDegree, 0, 1) for i in -1:0.02:1]))
+    envRange = -1:0.02:1
+    Var_F = var([PlNormalized(i, polynomialDegree, 0, 1) for i in envRange])
     # return exp((-K * (measureNetwork(activationFunction, activationScale, polynomialDegree, network))^2) / (100*Var_F)) ## With Squared measure
-    return exp((-K * (measureNetwork(activationFunction, activationScale, polynomialDegree, network))) / (100*Var_F))
+    return exp((-K * (measureNetwork(activationFunction, activationScale, polynomialDegree, network, envRange))) / (length(envRange)*Var_F))
 end
 
 ## Testing the functions as I go
 
 
-function mutateNetwork(μ_size, network)
+function mutateNetwork(μ_size, network::Network)
 
     ## samples a random weight and shifts it
     ## Le Nagard method
 
-    Wm, Wb = network
-    netDepth, netWidth = size(Wb)
+    netDepth, netWidth = size(network)
 
     ## Need to allocate a new array and fill it 
     ## copy() of the original network doesn't allocate new elements
     ## so the output network overwrites the old one
     newNetwork = generateFilledNetwork(netDepth, netWidth, 0.0)
-    for i in eachindex(network)
-        newNetwork[i] = copy(network[i])
-    end
+    copy!(newNetwork, network)
+
     mutationSize = randn()*μ_size
 
     ## Randomly selecting a weight (i,j,k,l) to mutate
@@ -150,19 +184,39 @@ function mutateNetwork(μ_size, network)
         l = sample(1:netWidth)
 
         if k > 0
-            newNetwork[1][i, j][k, l] += mutationSize
+            newNetwork.Wm[i, j][k, l] += mutationSize
         else
-            newNetwork[2][i, j] += mutationSize
+            newNetwork.Wb[i, j] += mutationSize
         end
     end
     return newNetwork
 end
 
+function mutateNetwork!(μ_size, network::Network)
+
+    ## samples a random weight and shifts it
+    ## Le Nagard method
+
+    netDepth, netWidth = size(network)
+
+    mutationSize = randn()*μ_size
+
+    i = sample(1:netDepth)
+    j = sample(1:netWidth)
+    k = sample(0:i-1)
+    l = sample(1:netWidth)
+
+    if k > 0
+        network.Wm[i, j][k, l] += mutationSize
+    else
+        network.Wb[i, j] += mutationSize
+    end
+end
 
 ## plots the fitness of each timestep in a simulation run
 ## has a comment capable of plotting the invasion probability as well
 function plotReplicatesFitness(simulationResults)
-    netDepth, netWidth = size(simulationResults[3][1][2])
+    netDepth, netWidth = size(simulationResults[3][1])
     numReps = length(simulationResults[3])
     titleStr = string("Fitness of $numReps replicates for a $(netDepth) layer network with $netWidth nodes")
 
@@ -193,7 +247,7 @@ function plotResponseCurves(activationFunction, activationScale, polyDegree, sim
             LayerOutputs = zeros(Float64, size(network[2])) ## size of the bias vector
             input = fill(0.0, netWidth)
             input[1] = i
-            push!(responseCurveValues, last(iterateNetwork(activationFunction, activationScale, input, network, LayerOutputs)[netDepth]))
+            push!(responseCurveValues, last(iterateNetwork!(activationFunction, activationScale, input, network, LayerOutputs)[netDepth]))
         end
         plt = plot!(-1:0.02:1, responseCurveValues, alpha = 0.5)
     end
@@ -227,7 +281,7 @@ end
 # polyDegree = 2
 # K = 5.0
 # N = 100
-# iterateNetwork(Φ, α, testInput, testNetwork, testActivationNetwork)
+# iterateNetwork!(Φ, α, testInput, testNetwork, testActivationNetwork)
 # measureNetwork(Φ, α, polyDegree, testNetwork)
 # fitness(Φ, α, K, polyDegree, testNetwork)
 # invasionProbability(Φ, α, K, polyDegree, N, testNetwork, testNetworkMutant)
@@ -239,7 +293,7 @@ end
 # blankNetwork = generateFilledNetwork(netDepth,netWidth, 0.0)
 # testInput = fill(0.0, netWidth)
 # testActivationMatrix = zeros(Float64, (netDepth, netWidth))
-# print(iterateNetwork(Φ, α, testInput, blankNetwork, testActivationMatrix))
+# print(iterateNetwork!(Φ, α, testInput, blankNetwork, testActivationMatrix))
 
 
 ## Testing / debugging functions

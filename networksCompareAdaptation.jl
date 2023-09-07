@@ -8,16 +8,31 @@ include("networksInvasionProbability.jl") ## Could probably use the Wright-Fishe
 ## This will be a long function since there will need to be specific code for handling the sim outputs and comparing them
 function compareNetworkSize(maxNetSize = 10, N = 10, T = 10, reps = 1, activationFunction = (f(x) = (1-exp(-x^2))), activationScale = 1.0, K = 5.0, polyDegree = 1,  μ_size = .1)
     netWidth = 1
-    fitnessHistories = Array{Vector}(undef, maxNetSize)## Only saving the fitness history to save memory, should be able to retrieve networks at a later date if needed
+    simulationResults = Array{Vector}(undef, maxNetSize)## Only saving the fitness history to save memory, should be able to retrieve networks at a later date if needed
     ## The structure of the outputs will be a three element vector of vectors
     ## We only care about the first vector, which is r (# of replicates) different timeseries 
     ## showing the evolutionary history of that parameter set 
     for i in 1:maxNetSize
-        simResults = simulate(N, T, reps, activationFunction, activationScale, K, polyDegree, i, netWidth, μ_size)
-        fitnessHistories[i] = simResults[1]
+        simulationResults[i] = simulate(N, T, reps, activationFunction, activationScale, K, polyDegree, i, netWidth, μ_size)
+        # fitnessHistories[i] = simResults[1]
     end
-    return fitnessHistories
+    return simulationResults
 end
+
+## generates fitness histories for all networks of a given size
+## only tests networks that have the same number of total nodes, but with different depths / widths
+function compareNetworkWidth(maxNetSize = 20, maxNetWidth = 10, N = 10, T = 10, reps = 1, activationFunction = (f(x) = (1-exp(-x^2))), activationScale = 1.0, K = 5.0, polyDegree = 1,  μ_size = .1)
+    simulationResults = []
+    for width in 1:maxNetWidth
+        if mod(maxNetSize, width) == 0 ## only iterating with valid network sizes
+            push!(simulationResults, simulate(N, T, reps, activationFunction, activationScale, K, polyDegree, Int(maxNetSize/width), width, μ_size))
+        end
+    end
+    return simulationResults
+end
+
+## takes a vector of simulation results and extracts the individual fitness timeseries
+generateFitnessHistories(simulationResults) = [simulationResults[i][1] for i in 1:length(simulationResults)]
 
 function calculateMeanFitnessHistories(fitnessHistories)
     ## Generating time series of mean fitness at each timestep
@@ -38,16 +53,18 @@ function calculateMeanFitnessHistories(fitnessHistories)
     return meanFitnessHistories
 end
 
-function fitnessHistoryTimeSeries(meanFitnessHistories)
+function fitnessHistoryTimeSeries(simulationResults)
+    fitnessHistories = generateFitnessHistories(simulationResults)
     ## comparison of time series
     labels = permutedims([string("NetSize ", x) for x in 1:length(fitnessHistories)][:,:])
     plt = plot()
-    plot!(plt, meanFitnessHistories, label = labels) 
+    plot!(plt, calculateMeanFitnessHistories(fitnessHistories), label = labels) 
     return plt
 end
 
-function fitnessHistoryViolinPlot(fitnessHistories)
+function fitnessHistoryViolinPlot(simulationResults)
     ## selecting the final timestep of each replicates
+    fitnessHistories = generateFitnessHistories(simulationResults)
     finalFitnesses = Array{Vector}(undef, length(fitnessHistories)) 
     for i in 1:length(fitnessHistories)
         replicateFitnesses = Array{Float64}(undef, length(fitnessHistories[1]))
@@ -57,16 +74,17 @@ function fitnessHistoryViolinPlot(fitnessHistories)
         finalFitnesses[i] = replicateFitnesses
     end
     plt = plot()
-    labels = permutedims([string("NetSize ", x) for x in 1:length(fitnessHistories)][:,:])
-    plt = violin(2:length(finalFitnesses), finalFitnesses[2:length(finalFitnesses)], label = labels)
+    labels = permutedims([string("NetSize ", size(simulationResults[x][3][1])) for x in 1:length(fitnessHistories)][:,:])
+    plt = violin(1:length(finalFitnesses), finalFitnesses[1:length(finalFitnesses)], label = labels)
 end
 
-maxNetSize = 5
+maxNetSize = 50
 maxNetWidth = 5
 N = 1000
-T = 100
+T = 1000
 reps = 10
-fitnessHistories = compareNetworkSize(maxNetSize, N, T, reps)
+# simulationResults = compareNetworkSize(maxNetSize, N, T, reps)
+simulationResults = compareNetworkWidth(maxNetSize, maxNetWidth, N, T, reps)
 meanFitnessHistories = calculateMeanFitnessHistories(fitnessHistories)
-fitnessHistoryTimeSeries(meanFitnessHistories)
-fitnessHistoryViolinPlot(fitnessHistories)
+fitnessHistoryTimeSeries(simulationResults)
+fitnessHistoryViolinPlot(simulationResults)

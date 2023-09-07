@@ -96,7 +96,7 @@ function iterateNetwork!(activationFunction::Function, activationScale, input, n
     activationMatrix[1, :] = input ## whatever vector gets passed as the initial response
     for i in 2:netDepth ## Iterating over each layer
         for j in 1:netWidth ## iterating over each node
-            activationMatrix[i,j] = calcOj(activationFunction, activationScale, j, i, activationMatrix, Wm, Wb)
+            activationMatrix[i, j] = calcOj(activationFunction, activationScale, j, i, activationMatrix, Wm, Wb)
         end
     end
     return activationMatrix
@@ -123,14 +123,14 @@ end
 function measureNetwork(activationFunction, activationScale, polynomialDegree, network::Network, envRange)
     netDepth, netWidth = size(network)
     x = 0
+    input = fill(0.0, netWidth)
     for i in envRange
         activationMatrix = zeros(netDepth, netWidth) ## size of the bias vector
-
+        input[1] = i
         ## Network input is simply a vector containing a single element in the first position
         ## this allows for expanding to more complex problem dimensions later
 
-        input = fill(0.0, netWidth)
-        input[1] = i
+
 
         ## I've set N_i to simply take the last value from the network activation
         ## in practice, this means most of the outputs in the last layer don't influence anything

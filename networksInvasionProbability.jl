@@ -74,7 +74,7 @@ end
 ## This section is for debugging the main simulation loops
 
 # N = 10000 ## N (population size)
-# T = 50000 ## T (simulation length)
+# T = 5000 ## T (simulation length)
 # reps = 2 ## number of replicates
 # activationFunction = (f(x) = (1 - exp(-x^2))) ## Le Nagard's activation function
 # # activationFunction = (f(x) = (1 / (1 + exp(-x)))) ## Logistic / sigmoid

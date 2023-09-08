@@ -86,7 +86,7 @@ function generateSimulations(maxNetSize = 30, N = 1000, T = 1000, reps = 10)
     activationFunction = (f(x) = (1-exp(-x^2)))
     activationScale = 1.0
     K = 5.0
-    envChallenges = [3, 10] ## Vector of each polynomial degree to check
+    envChallenges = [3, 9, 27] ## Vector of each polynomial degree to check
     μ_size = .1
     simulationOutputs = Dict() ## Dictionary where the keys are parameters (environmental challenge)
 
@@ -95,19 +95,20 @@ function generateSimulations(maxNetSize = 30, N = 1000, T = 1000, reps = 10)
         networkWidthComparisons = compareNetworkWidth(maxNetSize, maxNetSize, N, T, reps, activationFunction, activationScale, K, polyDegree, μ_size)
         simulationOutputs[polyDegree] = [networkDepthComparisons, networkWidthComparisons]
     end
-    # jldsave(dateString, simulationResults)
+    jldsave(dateString; simulationOutputs)
     return simulationOutputs
 end
 
-maxNetSize = 15
+maxNetSize = 
 maxNetWidth = 30
 N = 1000
-T = 100
-reps = 5
+T = 500000
+reps = 100
 simulationOutputs = generateSimulations(maxNetSize, N, T, reps)
 # simulationResults = compareNetworkSize(maxNetSize, N, T, reps)
 simulationResults = generateSimulations(maxNetSize, N, T, reps)
 meanFitnessHistories = calculateMeanFitnessHistories(fitnessHistories)
 fitnessHistoryTimeSeries(simulationResults)
 fitnessHistoryViolinPlot(simulationOutputs[3][2])
-fitnessHistoryViolinPlot(simulationOutputs[10][2])
+fitnessHistoryViolinPlot(simulationOutputs[9][2])
+fitnessHistoryViolinPlot(simulationOutputs[27][2])

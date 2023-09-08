@@ -42,8 +42,9 @@ end
 function simulate(N = 10, T = 10, reps = 1, activationFunction = (f(x) = (1-exp(-x^2))), activationScale = 1.0, K = 5.0, polyDegree = 1, netDepth = 5, netWidth = 6, μ_size = .1)
 
     ## Generates a random network, then mutates it
-    fitnessHistories = [fill(0.0, T) for _ in 1:reps]
-    invasionProbabilities = [fill(0.0, T) for _ in 1:reps]
+    netSaveStep = 1000
+    fitnessHistories = [fill(0.0, Int(T/netSaveStep)) for _ in 1:reps]
+    invasionProbabilities = [fill(0.0, Int(T/netSaveStep)) for _ in 1:reps]
     finalNetworks = [generateFilledNetwork(netDepth, netWidth, 0.0) for _ in 1:reps]
     for r in 1:reps
         resNet = generateNetwork(netDepth, netWidth) ## Initial resident network
@@ -55,14 +56,21 @@ function simulate(N = 10, T = 10, reps = 1, activationFunction = (f(x) = (1-exp(
             mutateNetwork!(μ_size, mutNet)
 
             invasionProb, resFitness, mutFitness = invasionProbability(activationFunction, activationScale, K, polyDegree, N, resNet, mutNet)
-            invasionProbabilities[r][t] = invasionProb
+            if mod(t, netSaveStep) == 0
+                invasionProbabilities[r][Int(t/netSaveStep)] = invasionProb
+            end
 
             if rand() <= invasionProb
                 copy!(resNet, mutNet)
-                fitnessHistories[r][t] = mutFitness
+                if mod(t, netSaveStep) == 0
+                    fitnessHistories[r][Int(t/netSaveStep)] = mutFitness
+                end
             else
-                fitnessHistories[r][t] = resFitness
+                if mod(t, netSaveStep) == 0
+                    fitnessHistories[r][Int(t/netSaveStep)] = resFitness
+                end
             end            
+
         end
 
         copy!(finalNetworks[r], resNet)

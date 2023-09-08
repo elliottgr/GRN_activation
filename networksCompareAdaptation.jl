@@ -8,11 +8,12 @@ include("networksInvasionProbability.jl") ## Could probably use the Wright-Fishe
 ## This will be a long function since there will need to be specific code for handling the sim outputs and comparing them
 function compareNetworkDepth(maxNetSize = 10, N = 10, T = 10, reps = 1, activationFunction = (f(x) = (1-exp(-x^2))), activationScale = 1.0, K = 5.0, polyDegree = 1,  μ_size = .1)
     netWidth = 1
+    netSizeStep = 5
     simulationResults = Array{Vector}(undef, maxNetSize)## Only saving the fitness history to save memory, should be able to retrieve networks at a later date if needed
     ## The structure of the outputs will be a three element vector of vectors
     ## We only care about the first vector, which is r (# of replicates) different timeseries 
     ## showing the evolutionary history of that parameter set 
-    for i in 1:maxNetSize
+    for i in 1:netSizeStep:maxNetSize
         simulationResults[i] = simulate(N, T, reps, activationFunction, activationScale, K, polyDegree, i, netWidth, μ_size)
     end
     return simulationResults
@@ -81,20 +82,32 @@ function generateSimulations(maxNetSize = 30, N = 1000, T = 1000, reps = 10)
     dateString = string("GRN_Adaptation_Comparisons_",Dates.now(), ".jld2")
 
     ##Global Parameters for all simulations
-    # maxNetSize = 30
-    # maxNetWidth = 30
-    # N = 1000
-    # T = 1000
-    # reps = 10
-    networkDepthComparisons = compareNetworkDepth(maxNetSize, N, T, reps)
-    networkWidthComparisons = compareNetworkWidth(maxNetSize, maxNetSize, N, T, reps)
-    simulationResults = [networkDepthComparisons, networkWidthComparisons]
-    jldsave(dateString, simulationResults)
+
+    activationFunction = (f(x) = (1-exp(-x^2)))
+    activationScale = 1.0
+    K = 5.0
+    envChallenges = [3, 10] ## Vector of each polynomial degree to check
+    μ_size = .1
+    simulationOutputs = Dict() ## Dictionary where the keys are parameters (environmental challenge)
+
+    for polyDegree in envChallenges
+        networkDepthComparisons = compareNetworkDepth(maxNetSize, N, T, reps, activationFunction, activationScale, K, polyDegree, μ_size)
+        networkWidthComparisons = compareNetworkWidth(maxNetSize, maxNetSize, N, T, reps, activationFunction, activationScale, K, polyDegree, μ_size)
+        simulationOutputs[polyDegree] = [networkDepthComparisons, networkWidthComparisons]
+    end
+    # jldsave(dateString, simulationResults)
+    return simulationOutputs
 end
 
-
+maxNetSize = 15
+maxNetWidth = 30
+N = 1000
+T = 100
+reps = 5
+simulationOutputs = generateSimulations(maxNetSize, N, T, reps)
 # simulationResults = compareNetworkSize(maxNetSize, N, T, reps)
-simulationResults = compareNetworkWidth(maxNetSize, maxNetWidth, N, T, reps)
+simulationResults = generateSimulations(maxNetSize, N, T, reps)
 meanFitnessHistories = calculateMeanFitnessHistories(fitnessHistories)
 fitnessHistoryTimeSeries(simulationResults)
-fitnessHistoryViolinPlot(simulationResults)
+fitnessHistoryViolinPlot(simulationOutputs[3][2])
+fitnessHistoryViolinPlot(simulationOutputs[10][2])

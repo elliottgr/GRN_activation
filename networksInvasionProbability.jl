@@ -3,6 +3,20 @@
 using Plots
 include("networksFuncs.jl") ## taking formulas 
 
+## Necessary to call the distributed workers in higher level scripts, kinda pointless for single threaded versions (will still work tho)
+struct simParams
+    N::Int
+    T::Int
+    reps::Int
+    activationFunction::Function
+    activationScale::Float64
+    K::Float64
+    polyDegree::Int
+    netDepth::Int
+    netWidth::Int
+    μ_size::Float64
+end
+
 ## Equivalent to Eq. 5, P(f_0 -> f_i), in le Nagard (2011)
 function invasionProbability(activationFunction, activationScale, K, polynomialDegree, N, resNet::Network, mutNet::Network)
 
@@ -39,7 +53,19 @@ end
 ## N = population size
 ## reps = replicates
 
-function simulate(N = 10, T = 10, reps = 1, activationFunction = (f(x) = (1-exp(-x^2))), activationScale = 1.0, K = 5.0, polyDegree = 1, netDepth = 5, netWidth = 6, μ_size = .1)
+function simulate(parameters::simParams)
+
+    ## Unpacking the parameters object
+    N = parameters.N
+    T = parameters.T
+    reps = parameters.reps
+    activationFunction = parameters.activationFunction
+    activationScale = parameters.activationScale
+    K = parameters.K
+    polyDegree = parameters.polyDegree 
+    netDepth = parameters.netDepth
+    netWidth = parameters.netWidth
+    μ_size = parameters.μ_size
 
     ## Generates a random network, then mutates it
     netSaveStep = 1000

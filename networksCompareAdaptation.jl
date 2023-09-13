@@ -1,7 +1,7 @@
 ## this file calls simulations of various network sizes to compare how this influences adaptation
 ## Network parameters explored are both the total number of nodes, as well as the distribution of these nodes (width vs depth)
-using StatsPlots, JLD2, Dates ## For violin plots
-include("networksInvasionProbability.jl") ## Could probably use the Wright-Fisher version if you wanted, but that would be much slower
+using Distributed, SharedArrays
+
 
 ## testing how the size of the network influences the final evolved fitness
 ## only varying network depth (number of layers) and keeping the number of nodes per layer the same
@@ -78,7 +78,7 @@ function fitnessHistoryViolinPlot(simulationResults)
     plt = violin(1:length(finalFitnesses), finalFitnesses[1:length(finalFitnesses)], label = labels)
 end
 
-function generateSimulations(maxNetSize = 30, N = 1000, T = 1000, reps = 10)
+function generateSimulations(maxNetSize = 30, maxNetWidth = 30, netSizeStep = 5, N = 1000, T = 1000, reps = 10)
     dateString = string("GRN_Adaptation_Comparisons_",Dates.now(), ".jld2")
 
     ##Global Parameters for all simulations
@@ -94,27 +94,46 @@ function generateSimulations(maxNetSize = 30, N = 1000, T = 1000, reps = 10)
             N : $N (Population size) \n 
             T : $T (Number of timesteps) \n 
             reps : $reps (number of replicates) \n")
-            
+
     for polyDegree in envChallenges
         print("Now testing Legendre Polynomials of degree $polyDegree \n")
-        networkDepthComparisons = compareNetworkDepth(maxNetSize, N, T, reps, activationFunction, activationScale, K, polyDegree, μ_size)
-        networkWidthComparisons = compareNetworkWidth(maxNetSize, maxNetSize, N, T, reps, activationFunction, activationScale, K, polyDegree, μ_size)
-        simulationOutputs[polyDegree] = [networkDepthComparisons, networkWidthComparisons]
+        # networkDepthComparisons = compareNetworkDepth(maxNetSize, N, T, reps, activationFunction, activationScale, K, polyDegree, μ_size)
+        
+        ## Rewritten to use multi-processing
+        networkDepthComparisons = []
+        for i in 1:netSizeStep:maxNetSize
+            push!(networkDepthComparisons, simParams(N, T, reps, activationFunction, activationScale, K, polyDegree, i, 1, μ_size))
+        end
+        simulate(networkDepthComparisons[1])
+        pmap(simulate, networkDepthComparisons)
+
+
+        # networkWidthComparisons = compareNetworkWidth(maxNetSize, maxNetSize, N, T, reps, activationFunction, activationScale, K, polyDegree, μ_size)
+        # simulationOutputs[polyDegree] = [networkDepthComparisons, networkWidthComparisons]
     end
-    jldsave(dateString; simulationOutputs)
-    return simulationOutputs
+    # jldsave(dateString; simulationOutputs)
+    # return simulationOutputs
 end
 
-maxNetSize = 
-maxNetWidth = 30
+maxNetSize = 10
+maxNetWidth = 10
 N = 1000
-T = 500000
-reps = 100
-simulationOutputs = generateSimulations(maxNetSize, N, T, reps)
-# simulationResults = compareNetworkSize(maxNetSize, N, T, reps)
-simulationResults = generateSimulations(maxNetSize, N, T, reps)
-meanFitnessHistories = calculateMeanFitnessHistories(fitnessHistories)
-fitnessHistoryTimeSeries(simulationResults)
-fitnessHistoryViolinPlot(simulationOutputs[3][2])
-fitnessHistoryViolinPlot(simulationOutputs[9][2])
-fitnessHistoryViolinPlot(simulationOutputs[27][2])
+T = 2000
+reps = 5
+
+## Comparing different parameters for multi-processing
+
+## 1 Process
+nprocs()
+@everywhere using StatsPlots, JLD2, Dates ## For violin plots
+@everywhere include("networksInvasionProbability.jl") ## Could probably use the Wright-Fisher version if you wanted, but that would be much slower
+
+@time simulationOutputs = generateSimulations(maxNetSize, maxNetWidth, 5, N, T, reps)
+
+
+addprocs(3)
+nprocs()
+@everywhere using StatsPlots, JLD2, Dates ## For violin plots
+@everywhere include("networksInvasionProbability.jl") ## Could probably use the Wright-Fisher version if you wanted, but that would be much slower
+
+@time simulationOutputs = generateSimulations(maxNetSize, maxNetWidth, 5, N, T, reps)

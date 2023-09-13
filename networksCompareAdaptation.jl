@@ -1,23 +1,6 @@
 ## this file calls simulations of various network sizes to compare how this influences adaptation
 ## Network parameters explored are both the total number of nodes, as well as the distribution of these nodes (width vs depth)
-using Distributed, SharedArrays
-
-
-## testing how the size of the network influences the final evolved fitness
-## only varying network depth (number of layers) and keeping the number of nodes per layer the same
-## This will be a long function since there will need to be specific code for handling the sim outputs and comparing them
-function compareNetworkDepth(maxNetSize = 10, N = 10, T = 10, reps = 1, activationFunction = (f(x) = (1-exp(-x^2))), activationScale = 1.0, K = 5.0, polyDegree = 1,  μ_size = .1)
-    netWidth = 1
-    netSizeStep = 5
-    simulationResults = Array{Vector}(undef, maxNetSize)## Only saving the fitness history to save memory, should be able to retrieve networks at a later date if needed
-    ## The structure of the outputs will be a three element vector of vectors
-    ## We only care about the first vector, which is r (# of replicates) different timeseries 
-    ## showing the evolutionary history of that parameter set 
-    for i in 1:netSizeStep:maxNetSize
-        simulationResults[i] = simulate(N, T, reps, activationFunction, activationScale, K, polyDegree, i, netWidth, μ_size)
-    end
-    return simulationResults
-end
+using Distributed
 
 ## generates fitness histories for all networks of a given size
 ## only tests networks that have the same number of total nodes, but with different depths / widths
@@ -86,29 +69,41 @@ function generateSimulations(maxNetSize = 30, maxNetWidth = 30, netSizeStep = 5,
     activationFunction = (f(x) = (1-exp(-x^2)))
     activationScale = 1.0
     K = 5.0
-    envChallenges = [3, 9, 27] ## Vector of each polynomial degree to check
+    # envChallenges = [3, 9, 27] ## Vector of each polynomial degree to check
+    envChallenges = [3]
     μ_size = .1
     simulationOutputs = Dict() ## Dictionary where the keys are parameters (environmental challenge)
     print("Beginning simulations with \n 
             maxNetSize : $maxNetSize \n 
             N : $N (Population size) \n 
             T : $T (Number of timesteps) \n 
-            reps : $reps (number of replicates) \n")
+            reps : $reps (number of replicates) \n
+            nproc : $(nprocs()) (number of processes) \n")
 
     for polyDegree in envChallenges
         print("Now testing Legendre Polynomials of degree $polyDegree \n")
-        # networkDepthComparisons = compareNetworkDepth(maxNetSize, N, T, reps, activationFunction, activationScale, K, polyDegree, μ_size)
-        
+
         ## Rewritten to use multi-processing
+        
+        ## testing how the size of the network influences the final evolved fitness
+        ## only varying network depth (number of layers) and keeping the number of nodes per layer the same
         networkDepthComparisons = []
+
+        ## generates fitness histories for all networks of a given size
+        ## only tests networks that have the same number of total nodes, but with different depths / widths
+        networkWidthComparisons = []
+
         for i in 1:netSizeStep:maxNetSize
             push!(networkDepthComparisons, simParams(N, T, reps, activationFunction, activationScale, K, polyDegree, i, 1, μ_size))
         end
-        simulate(networkDepthComparisons[1])
+
+        for width in 1:maxNetWidth
+            if mod(maxNetSize, width) == 0 ## only iterating with valid network sizes
+                push!(networkWidthComparisons, simParams(N, T, reps, activationFunction, activationScale, K, polyDegree, Int(maxNetSize/width), width, μ_size))
+            end
+        end
         pmap(simulate, networkDepthComparisons)
-
-
-        # networkWidthComparisons = compareNetworkWidth(maxNetSize, maxNetSize, N, T, reps, activationFunction, activationScale, K, polyDegree, μ_size)
+        pmap(simulate, networkWidthComparisons)
         # simulationOutputs[polyDegree] = [networkDepthComparisons, networkWidthComparisons]
     end
     # jldsave(dateString; simulationOutputs)
@@ -118,7 +113,7 @@ end
 maxNetSize = 10
 maxNetWidth = 10
 N = 1000
-T = 2000
+T = 10000
 reps = 5
 
 ## Comparing different parameters for multi-processing
@@ -128,12 +123,12 @@ nprocs()
 @everywhere using StatsPlots, JLD2, Dates ## For violin plots
 @everywhere include("networksInvasionProbability.jl") ## Could probably use the Wright-Fisher version if you wanted, but that would be much slower
 
-@time simulationOutputs = generateSimulations(maxNetSize, maxNetWidth, 5, N, T, reps)
+@time simulationOutputs = generateSimulations(maxNetSize, maxNetWidth, 1, N, T, reps)
 
 
-addprocs(3)
+addprocs(7)
 nprocs()
 @everywhere using StatsPlots, JLD2, Dates ## For violin plots
 @everywhere include("networksInvasionProbability.jl") ## Could probably use the Wright-Fisher version if you wanted, but that would be much slower
 
-@time simulationOutputs = generateSimulations(maxNetSize, maxNetWidth, 5, N, T, reps)
+@time simulationOutputs = generateSimulations(maxNetSize, maxNetWidth, 1, N, T, reps)

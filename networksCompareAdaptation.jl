@@ -1,6 +1,7 @@
 ## this file calls simulations of various network sizes to compare how this influences adaptation
 ## Network parameters explored are both the total number of nodes, as well as the distribution of these nodes (width vs depth)
 using Distributed
+using Threads
 
 ## generates fitness histories for all networks of a given size
 ## only tests networks that have the same number of total nodes, but with different depths / widths
@@ -102,19 +103,31 @@ function generateSimulations(maxNetSize = 30, maxNetWidth = 30, netSizeStep = 5,
                 push!(networkWidthComparisons, simParams(N, T, reps, activationFunction, activationScale, K, polyDegree, Int(maxNetSize/width), width, μ_size))
             end
         end
-        pmap(simulate, networkDepthComparisons)
-        pmap(simulate, networkWidthComparisons)
+
+        ## multithreading 
+        chunks = Iterators.partition(networkDepthComparisons, Int(length(networkDepthComparisons)/Threads.nthreads()))
+        tasks = map(chunks) do chunk
+            print(chunk)
+            Threads.@spawn simulate(chunk)
+        end
+        print(fetch.(tasks))
+        # Threads.@threads for i in 1:length(1:netSizeStep:maxNetSize)
+            # networkDepthCom
+
+        ## Parallel processing
+        # pmap(simulate, networkDepthComparisons)
+        # pmap(simulate, networkWidthComparisons)
         # simulationOutputs[polyDegree] = [networkDepthComparisons, networkWidthComparisons]
     end
     # jldsave(dateString; simulationOutputs)
     # return simulationOutputs
 end
 
-maxNetSize = 10
+maxNetSize = 5
 maxNetWidth = 10
 N = 1000
-T = 10000
-reps = 5
+T = 1000
+reps = 2
 
 ## Comparing different parameters for multi-processing
 

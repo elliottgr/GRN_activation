@@ -1,8 +1,6 @@
 ## this file calls simulations of various network sizes to compare how this influences adaptation
 ## Network parameters explored are both the total number of nodes, as well as the distribution of these nodes (width vs depth)
 using Distributed
-using .Threads
-using Dagger
 
 ## generates fitness histories for all networks of a given size
 ## only tests networks that have the same number of total nodes, but with different depths / widths
@@ -117,7 +115,7 @@ function generateSimulations(maxNetSize = 30, maxNetWidth = 30, netSizeStep = 5,
     
 end
 
-maxNetSize = 5
+maxNetSize = 10
 maxNetWidth = 10
 N = 1000
 T = 10000
@@ -131,9 +129,9 @@ using StatsPlots, JLD2, Dates ## For violin plots
 include("networksInvasionProbability.jl") ## Could probably use the Wright-Fisher version if you wanted, but that would be much slower
 
 @time simulationOutputs = generateSimulations(maxNetSize, maxNetWidth, 1, N, T, reps)
+## around 90 seconds
 
-
-addprocs(7)
+addprocs(15)
 nprocs()
 @everywhere using StatsPlots, JLD2, Dates ## For violin plots
 @everywhere include("networksInvasionProbability.jl") 

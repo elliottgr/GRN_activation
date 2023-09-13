@@ -89,8 +89,13 @@ function generateSimulations(maxNetSize = 30, N = 1000, T = 1000, reps = 10)
     envChallenges = [3, 9, 27] ## Vector of each polynomial degree to check
     μ_size = .1
     simulationOutputs = Dict() ## Dictionary where the keys are parameters (environmental challenge)
-
+    print("Beginning simulations with \n 
+            maxNetSize : $maxNetSize \n 
+            N : $N (Population size) \n 
+            T : $T (Number of timesteps) \n 
+            reps : $reps (number of replicates) \n")
     for polyDegree in envChallenges
+        print("Now testing Legendre Polynomials of degree $polyDegree \n")
         networkDepthComparisons = compareNetworkDepth(maxNetSize, N, T, reps, activationFunction, activationScale, K, polyDegree, μ_size)
         networkWidthComparisons = compareNetworkWidth(maxNetSize, maxNetSize, N, T, reps, activationFunction, activationScale, K, polyDegree, μ_size)
         simulationOutputs[polyDegree] = [networkDepthComparisons, networkWidthComparisons]

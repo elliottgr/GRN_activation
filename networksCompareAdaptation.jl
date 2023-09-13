@@ -94,6 +94,7 @@ function generateSimulations(maxNetSize = 30, N = 1000, T = 1000, reps = 10)
             N : $N (Population size) \n 
             T : $T (Number of timesteps) \n 
             reps : $reps (number of replicates) \n")
+            
     for polyDegree in envChallenges
         print("Now testing Legendre Polynomials of degree $polyDegree \n")
         networkDepthComparisons = compareNetworkDepth(maxNetSize, N, T, reps, activationFunction, activationScale, K, polyDegree, μ_size)

@@ -1,7 +1,8 @@
 ## this file calls simulations of various network sizes to compare how this influences adaptation
 ## Network parameters explored are both the total number of nodes, as well as the distribution of these nodes (width vs depth)
 using Distributed
-using Threads
+using .Threads
+using Dagger
 
 ## generates fitness histories for all networks of a given size
 ## only tests networks that have the same number of total nodes, but with different depths / widths
@@ -63,7 +64,7 @@ function fitnessHistoryViolinPlot(simulationResults)
 end
 
 function generateSimulations(maxNetSize = 30, maxNetWidth = 30, netSizeStep = 5, N = 1000, T = 1000, reps = 10)
-    dateString = string("GRN_Adaptation_Comparisons_",Dates.now(), ".jld2")
+    # dateString = string("GRN_Adaptation_Comparisons_",Dates.now(), ".jld2")
 
     ##Global Parameters for all simulations
 
@@ -78,8 +79,8 @@ function generateSimulations(maxNetSize = 30, maxNetWidth = 30, netSizeStep = 5,
             maxNetSize : $maxNetSize \n 
             N : $N (Population size) \n 
             T : $T (Number of timesteps) \n 
-            reps : $reps (number of replicates) \n
-            nproc : $(nprocs()) (number of processes) \n")
+            reps : $reps (number of replicates) \n")
+            ## nproc : $(nprocs()) (number of processes) \n"
 
     for polyDegree in envChallenges
         print("Now testing Legendre Polynomials of degree $polyDegree \n")
@@ -103,38 +104,31 @@ function generateSimulations(maxNetSize = 30, maxNetWidth = 30, netSizeStep = 5,
                 push!(networkWidthComparisons, simParams(N, T, reps, activationFunction, activationScale, K, polyDegree, Int(maxNetSize/width), width, μ_size))
             end
         end
-
-        ## multithreading 
-        chunks = Iterators.partition(networkDepthComparisons, Int(length(networkDepthComparisons)/Threads.nthreads()))
-        tasks = map(chunks) do chunk
-            print(chunk)
-            Threads.@spawn simulate(chunk)
-        end
-        print(fetch.(tasks))
-        # Threads.@threads for i in 1:length(1:netSizeStep:maxNetSize)
-            # networkDepthCom
+        
+        # out = 
 
         ## Parallel processing
-        # pmap(simulate, networkDepthComparisons)
-        # pmap(simulate, networkWidthComparisons)
-        # simulationOutputs[polyDegree] = [networkDepthComparisons, networkWidthComparisons]
+        outputDepthComparisons = pmap(simulate, networkDepthComparisons)
+        outputWidthComparisons = pmap(simulate, networkWidthComparisons)
+        simulationOutputs[polyDegree] = [outputDepthComparisons, outputWidthComparisons]
     end
     # jldsave(dateString; simulationOutputs)
-    # return simulationOutputs
+    return simulationOutputs
+    
 end
 
 maxNetSize = 5
 maxNetWidth = 10
 N = 1000
-T = 1000
+T = 10000
 reps = 2
 
 ## Comparing different parameters for multi-processing
 
 ## 1 Process
 nprocs()
-@everywhere using StatsPlots, JLD2, Dates ## For violin plots
-@everywhere include("networksInvasionProbability.jl") ## Could probably use the Wright-Fisher version if you wanted, but that would be much slower
+using StatsPlots, JLD2, Dates ## For violin plots
+include("networksInvasionProbability.jl") ## Could probably use the Wright-Fisher version if you wanted, but that would be much slower
 
 @time simulationOutputs = generateSimulations(maxNetSize, maxNetWidth, 1, N, T, reps)
 
@@ -142,6 +136,6 @@ nprocs()
 addprocs(7)
 nprocs()
 @everywhere using StatsPlots, JLD2, Dates ## For violin plots
-@everywhere include("networksInvasionProbability.jl") ## Could probably use the Wright-Fisher version if you wanted, but that would be much slower
+@everywhere include("networksInvasionProbability.jl") 
 
 @time simulationOutputs = generateSimulations(maxNetSize, maxNetWidth, 1, N, T, reps)

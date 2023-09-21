@@ -54,10 +54,13 @@ end
             for i in 1:netSizeStep:maxNetSize
                 push!(networkDepthComparisons, simParams(N, T, reps, activationFunction, activationScale, K, polyDegree, i, 1, μ_size))
             end
-    
+            
+            ## Need to account for the fact that the first layer doesn't process when determining active nodes
+            ## This generates all networks of the same "active" size, meaning they have the same number of nodes outside the input layer
             for width in 1:maxNetWidth
                 if mod(maxNetSize, width) == 0 ## only iterating with valid network sizes
-                    push!(networkWidthComparisons, simParams(N, T, reps, activationFunction, activationScale, K, polyDegree, Int(maxNetSize/width), width, μ_size))
+                    netDepth = Int((maxNetSize/width)+1)
+                    push!(networkWidthComparisons, simParams(N, T, reps, activationFunction, activationScale, K, polyDegree, netDepth, width, μ_size))
                 end
             end
             

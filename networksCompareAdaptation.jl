@@ -27,7 +27,7 @@ end
         activationFunction = (f(x) = (1-exp(-x^2)))
         activationScale = 1.0
         K = 5.0
-        envChallenges = [3, 9, 27] ## Vector of each polynomial degree to check
+        envChallenges = [1, 2, 3, 5, 7] ## Vector of each polynomial degree to check
         # envChallenges = [3]
         μ_size = .1
         simulationOutputs = Dict() ## Dictionary where the keys are parameters (environmental challenge)

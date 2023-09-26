@@ -100,17 +100,35 @@ groupedBoxPlots(simulationResults)
 function generateTabular(simulationResults)
     T = []
     envChallenge = []
-    netDepth = []
-    netWidth = []
-    fitness = []
+    netDepths = []
+    netWidths = []
+    fitnesses = []
+    depthORwidthChecks = []
     ## lot of nested loops :(
     for envChal in keys(simulationResults)
         for widthORdepth in [1, 2]
-            for replicate in 1:length(simulationResults[envChal][widthORdepth])
-                for t in simulationResults[envChal][widthORdepth][replicate][1]
-                    
+            for networkSizeIndex in 1:length(simulationResults[envChal][widthORdepth])
+                for replicate in 1:length(simulationResults[envChal][widthORdepth][networkSizeIndex])
+                    netDepth, netWidth = size(simulationResults[envChal][widthORdepth][networkSizeIndex][3][replicate])
+                    for t in 1:length(simulationResults[envChal][widthORdepth][networkSizeIndex][1][replicate])
+                        w = simulationResults[envChal][widthORdepth][networkSizeIndex][1][replicate][t]
+                        push!(T, t)
+                        push!(envChallenge, envChal)
+                        push!(netDepths, netDepth)
+                        push!(netWidths, netWidth)
+                        push!(fitnesses, w)
+                        push!(depthORwidthChecks, depthORwidth)
+                    end
                 end
             end
         end
     end
+    return DataFrame(T = T, 
+    envChallenge = envChallenge, 
+    netDepth = netDepths, 
+    netWidth = netWidths,
+    fitness = fitnesses,
+    depthORwidth = depthORwidthChecks)
 end
+
+df = generateTabular(simulationResults)

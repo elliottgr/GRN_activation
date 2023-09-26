@@ -1,7 +1,7 @@
 ## This file loads the JLD2 file generated from the networksCompareAdaptation.jl file
 ## and then runs them through some plots :)
 
-using JLD2, StatsPlots, Filesystem
+using JLD2, StatsPlots, DataFrames
 include("networksInvasionProbability.jl")
 ## generates fitness histories for all networks of a given size
 ## only tests networks that have the same number of total nodes, but with different depths / widths
@@ -51,6 +51,29 @@ function fitnessHistoryViolinPlot(simulationResults)
     plt = violin(1:length(finalFitnesses), finalFitnesses[1:length(finalFitnesses)], label = labels)
 end
 
+
+function groupedBoxPlots(simulationResults, depthORwidth = 1)
+    envChallenges = keys(simulationResults)
+    fitnessDistributionsPerEnvChallenge = Dict()
+    for envChal in envChallenges
+        simResult = simulationResults[envChal]
+        fitnessHistories = [simResult[depthORwidth][i][1] for i in 1:length(simResult)]
+        finalFitnesses = Array{Vector}(undef, length(fitnessHistories)) 
+        for i in 1:length(fitnessHistories)
+            replicateFitnesses = Array{Float64}(undef, length(fitnessHistories[1]))
+            for r in 1:length(fitnessHistories[1])
+                replicateFitnesses[r] = last(fitnessHistories[i][r])
+            end
+            finalFitnesses[i] = replicateFitnesses
+        end
+        fitnessDistributionsPerEnvChallenge[envChal] = finalFitnesses
+    end
+    return fitnessDistributionsPerEnvChallenge
+    # plt = plot()
+    # labels = permutedims([string("NetSize ", size(simulationResults[x][3][1])) for x in 1:length(fitnessHistories)][:,:])
+    # plt = violin(1:length(finalFitnesses), finalFitnesses[1:length(finalFitnesses)], label = labels)
+end
+
 ## Can access the files in the following way:
 ## simulationData[fileNumber]["simulationOutputs"][envChallenge][width or depth comparison][networkSize][timeseries/invProb/networks]
 
@@ -65,5 +88,29 @@ function loadSimulationResults(path = pwd())
     return simulationData
 end
 
-simulationResults = loadSimulationResults()
-fitnessHistoryViolinPlot(simulationResults[1]["simulationOutputs"][3][2])
+simulationResults = last(loadSimulationResults())["simulationOutputs"] ## load latest simulation
+envChallenge = 3
+depthORwidth = 1 #1 = depth, 2 = width
+fitnessHistoryViolinPlot(simulationResults[envChallenge][depthORwidth])
+
+groupedBoxPlots(simulationResults)
+
+## generating a tabular dataset of the fitness time series
+
+function generateTabular(simulationResults)
+    T = []
+    envChallenge = []
+    netDepth = []
+    netWidth = []
+    fitness = []
+    ## lot of nested loops :(
+    for envChal in keys(simulationResults)
+        for widthORdepth in [1, 2]
+            for replicate in 1:length(simulationResults[envChal][widthORdepth])
+                for t in simulationResults[envChal][widthORdepth][replicate][1]
+                    
+                end
+            end
+        end
+    end
+end

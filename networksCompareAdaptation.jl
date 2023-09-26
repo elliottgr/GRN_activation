@@ -78,7 +78,7 @@ end
     maxNetSize = 12
     maxNetWidth = 12
     N = 1000
-    T = 100000
+    T = 1000000
     reps = 50
 
 end 

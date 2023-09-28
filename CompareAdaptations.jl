@@ -2,12 +2,6 @@
 ## Network parameters explored are both the total number of nodes, as well as the distribution of these nodes (width vs depth)
 using Distributed
 
-maxNetSize = 3
-maxNetWidth = 10
-N = 1000
-T = 10000
-reps = 2
-
 ## Comparing different parameters for multi-processing
 nprocs()
 

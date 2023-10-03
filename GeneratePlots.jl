@@ -2,7 +2,7 @@
 ## and then runs them through some plots :)
 
 using JLD2, StatsPlots, DataFrames
-include("networksInvasionProbability.jl")
+include("Networks.jl")
 
 
 ## Can access the files in the following way:
@@ -26,14 +26,14 @@ function generateTabular(simulationResults)
     netDepths = []
     netWidths = []
     fitnesses = []
-    experimentType = [] ## will update this to some sort of "ExperimentID in the future. For now, 1 = variation in depth, 2 = variation in width
+    experimentType = [] ## will update this to some sort of "ExperimentID in the future. For now, 1 = variation in depth, 2 = variation in width, >2 is activation function comparisons
     replicateID = [] ## assigns a unique ID to each replicate
     repID = 1
     ## lot of nested loops :(
     for envChal in keys(simulationResults)
-        for expType in [1, 2]
+        for expType in 1:length(simulationResults[envChal])
             for networkSizeIndex in 1:length(simulationResults[envChal][expType])
-                for replicate in 1:length(simulationResults[envChal][expType][networkSizeIndex])
+                for replicate in 1:length(simulationResults[envChal][expType][networkSizeIndex][1])
                     netDepth, netWidth = size(simulationResults[envChal][expType][networkSizeIndex][3][replicate])
                     for t in 1:length(simulationResults[envChal][expType][networkSizeIndex][1][replicate])
                         w = simulationResults[envChal][expType][networkSizeIndex][1][replicate][t]
@@ -60,7 +60,7 @@ function generateTabular(simulationResults)
     replicateID = replicateID)
 end
 
-simulationResults = loadSimulationResults()[1]["simulationOutputs"]
+simulationResults = loadSimulationResults()[3]["simulationOutputs"]
 df = generateTabular(simulationResults)
 
 
@@ -68,13 +68,25 @@ df = generateTabular(simulationResults)
 ## Plots of all data
 ################
 
+<<<<<<< HEAD:networksComparisonPlots.jl
 minDepth, maxDepth = (1, 8)
 minWidth, maxWidth = (2, 15)
+=======
+minDepth, maxDepth = (1, 15)
+minWidth, maxWidth = (1, 15)
+>>>>>>> filestructure:GeneratePlots.jl
 minFitness, maxFitness = (0.15, 1.0)
 
 
 ncolors(df, dfSelection) = permutedims(repeat(collect(1:size(unique(df[dfSelection, [:netDepth, :netWidth]]))[1]),length(unique(df.envChallenge)))[:,:])
 colorScale(df, dfSelection) = [RGB(x,x,x) for x in 0.0:(1/size(unique(df[dfSelection, [:netDepth, :netWidth]]))[1]):1.0]
+<<<<<<< HEAD:networksComparisonPlots.jl
+=======
+labels(df, dfSelection) = permutedims(cat([string("Depth: ", label[1], ", ", "Width: ", label[2])  for label in eachrow(unique(df[dfSelection, [:netDepth, :netWidth]]))], 
+                                        fill("", (length(ncolors(df, dfSelection)) - size(unique(df[dfSelection, [:netDepth, :netWidth]]))[1])), 
+                                    dims =(1))[:,:])
+
+>>>>>>> filestructure:GeneratePlots.jl
 ## plotting by depth
 depthSelection = (df.netWidth .== 1) .& (df.T .== maximum(df.T)) .& (df.netDepth .<= maxDepth)
 @df df[depthSelection, :] boxplot(string.(tuple.(:envChallenge, :netDepth)), :fitness, group=(:envChallenge, :netDepth), color = ncolors(df, depthSelection), palette = colorScale(df, depthSelection), legend = :none, title = "Fitness for networks of size ≤ $maxDepth \n and environmental challenges ≤ $(maximum(:envChallenge))")
@@ -86,3 +98,7 @@ widthSelection = (df.netWidth .> minWidth) .& (df.T .== maximum(df.T)) .& (df.ne
 filteredDepthSelection = (df.fitness .>= minFitness) .& (df.netWidth .== 1) .& (df.T .== maximum(df.T)) .& (df.netDepth .<= maxDepth)
 @df df[filteredDepthSelection, :] boxplot(string.(tuple.(:envChallenge, :netDepth)), :fitness, color = ncolors(df, filteredDepthSelection), group=(:envChallenge, :netDepth), legend = :none)
 @df df[(df.fitness .>= minFitness) .& (df.netWidth .> minWidth) .& (df.T .== maximum(df.T)) .& (df.netDepth .<= maxDepth) .& ((df.netDepth .>= minDepth)), :] boxplot(string.(tuple.(:envChallenge, :netDepth)), :fitness, group=(:envChallenge, :netDepth), legend = :none)
+
+## Plots comparing by Activation function
+ActivationFunctionSelection = (df.T .== maximum(df.T) .& df.experimentType .>= 3)
+@df df[ActivationFunctionSelection, :] boxplot(string.(tuple.(:envChallenge, :experimentType)), :fitness, color = ncolors(df, ActivationFunctionSelection), palette = colorScale(df, ActivationFunctionSelection), group=(:envChallenge, :experimentType), labels = labels(df, ActivationFunctionSelection), title = "")

@@ -90,7 +90,7 @@ function iterateNetwork!(activationFunction::Function, activationScale, input, n
 
     ## Calculates the total output of the network,
     ## iterating over calcOj() for each node
-
+    
     Wm, Wb = network.Wm, network.Wb
     netDepth, netWidth = size(network)
     activationMatrix[1, :] = input ## whatever vector gets passed as the initial response
@@ -102,24 +102,13 @@ function iterateNetwork!(activationFunction::Function, activationScale, input, n
     return activationMatrix
 end
 
-
-## Define R(g(i)), the target the network is training towards
-## R is just some Legendre Polynomial, which I'm defining
-## as R(i, n)  with i as value and with n as degree. 
-## Using the "LegendrePolynomial" package to generate these
-
-## We need a function to normalize the Legendre polynomials to a specific range
-## since the polynomials are already fixed to [-1, 1], we can 
-## easily rescale it to any input/output. Le Nagard et al used [.1, .9] as their interval
+## function to normalize the Legendre polynomials to a specific range
 function PlNormalized(x, l, min, max)
     r = (max - min) / 2
     return r * (Pl(x, l) + 1) + min
 end
 
-## Fitness Evaluation of network
-## Need to generate N(g(i)) - R(g(i))
 ## this function measures the fit of the network versus the chosen legendre polynomial 
-
 function measureNetwork(activationFunction, activationScale, polynomialDegree, network::Network, envRange)
     netDepth, netWidth = size(network)
     x = 0
@@ -127,20 +116,9 @@ function measureNetwork(activationFunction, activationScale, polynomialDegree, n
     for i in envRange
         activationMatrix = zeros(netDepth, netWidth) ## size of the bias vector
         input[1] = i
-        ## Network input is simply a vector containing a single element in the first position
-        ## this allows for expanding to more complex problem dimensions later
-
-
-
-        ## I've set N_i to simply take the last value from the network activation
-        ## in practice, this means most of the outputs in the last layer don't influence anything
-        ## but this makes the code functionally similar to what has been used previously
-        ## Importantly, networks of width 1 should behave as they have in previous versions of the model
-
         iterateNetwork!(activationFunction, activationScale, input, network, activationMatrix)
         N_i = activationMatrix[netDepth, netWidth]
         R_i = PlNormalized(i, polynomialDegree, 0, 1)
-        # print(" N_i = $N_i   |   R_i = $R_i   |  N - R = $(N_i - R_i) \n")
         x += (N_i - R_i) ^2
     end
     return x
@@ -149,12 +127,8 @@ end
 function fitness(activationFunction, activationScale, K, polynomialDegree, network)
     envRange = -1:0.02:1
     Var_F = var([PlNormalized(i, polynomialDegree, 0, 1) for i in envRange])
-    # return exp((-K * (measureNetwork(activationFunction, activationScale, polynomialDegree, network))^2) / (100*Var_F)) ## With Squared measure
     return exp((-K * (measureNetwork(activationFunction, activationScale, polynomialDegree, network, envRange))) / (length(envRange)*Var_F))
 end
-
-## Testing the functions as I go
-
 
 function mutateNetwork(μ_size, network::Network)
 
@@ -231,35 +205,19 @@ function invasionProbability(activationFunction, activationScale, K, polynomialD
     resFitness = fitness(activationFunction, activationScale, K, polynomialDegree, resNet)
     mutFitness = fitness(activationFunction, activationScale, K, polynomialDegree, mutNet)
     fitnessRatio =  resFitness / mutFitness
-
-    ## A few conditional statements broken down for debugging and dodging NaNs
     if mutFitness == 0.0
         fixp = 0.0
     else
         num = 1 - (fitnessRatio)^2
         den = 1 - (fitnessRatio)^(2*N)
-        #JVC: the sim is designed not to have clones so need need to avoid this. 
-        #JVC: also, you may want to allow truly neutral genotypes to invade via drift.
-        if fitnessRatio == 1.0 ##ELG: Not sure if this is what the JVC comment in the above line is referring to, but this should mean that mutants with equal fitness have the expected invasion probability 
+        if fitnessRatio == 1.0 
             fixp = 1 / (2*N)
         else
             fixp = num/den
         end
-         ## Debugging, will flood the console but prints all fitness tests
-        #print("resFit : $resFitness  |  mutFit : $mutFitness  | fitnessRatio :  $fitnessRatio  |  Num : $num  |  Den : $den  |  Prob : $fixp \n")
     end
-    if isnan(fixp)
-        print("oh no")
-    end
-
     return fixp, resFitness, mutFitness
 end
-
-## Parameters:
-
-## T = length of simulation / number of timesteps
-## N = population size
-## reps = replicates
 
 function simulate(parameters::simParams)
 
@@ -312,26 +270,6 @@ function simulate(parameters::simParams)
     return [fitnessHistories, invasionProbabilities, finalNetworks]
 end
 
-## Testing the network adaptation and the response curves 
-## This section is for debugging the main simulation loops
-
-# N = 10000 ## N (population size)
-# T = 5000 ## T (simulation length)
-# reps = 2 ## number of replicates
-# activationFunction = (f(x) = (1 - exp(-x^2))) ## Le Nagard's activation function
-# # activationFunction = (f(x) = (1 / (1 + exp(-x)))) ## Logistic / sigmoid
-# # activationFunction = (f(x) = x) ## Linear activation
-# # activationFunction = (f(x) = maximum([0.0, x])) ## ReLU
-# activationScale = 1.0 ## activationScale (activation coefficient)
-# K = 5.0 ## K (strength of selection)
-# polyDegree = 3 ## degree of the Legendre Polynomial
-# netDepth = 4 ## Size of the networks
-# netWidth = 3
-# μ_size = .1 ## standard deviation of mutation magnitude
-
-# simResults = simulate(N, T, reps, activationFunction, activationScale, K, polyDegree, netDepth, netWidth, μ_size)
-# plotReplicatesFitness(simResults)
-# plotResponseCurves(activationFunction, activationScale, polyDegree, simResults)
 
 ##############################################
 ## Unit Testing and Debugging functions
@@ -349,31 +287,6 @@ function testMutationFunction(netDepth=50, netWidth=10)
     end
     return count
 end
-
-# Φ = (f(x) = (1 - exp(-x^2))) 
-# α = 1.0
-# testNetwork = generateNetwork(5,6)
-# testNetworkMutant = mutateNetwork(0.1, testNetwork)
-# testActivationNetwork = zeros(Float64, (5,6)) ## dummy network, will be generated as part of network iteration later on
-# calcOj(Φ, α, 1, 1, testActivationNetwork, testNetwork...)
-# testInput = rand(Float64, 6)
-# polyDegree = 2
-# K = 5.0
-# N = 100
-# iterateNetwork!(Φ, α, testInput, testNetwork, testActivationNetwork)
-# measureNetwork(Φ, α, polyDegree, testNetwork)
-# fitness(Φ, α, K, polyDegree, testNetwork)
-# invasionProbability(Φ, α, K, polyDegree, N, testNetwork, testNetworkMutant)
-
-# ## Blank network testing
-# ## Should return zero output
-# netDepth = 3
-# netWidth = 3
-# blankNetwork = generateFilledNetwork(netDepth,netWidth, 0.0)
-# testInput = fill(0.0, netWidth)
-# testActivationMatrix = zeros(Float64, (netDepth, netWidth))
-# print(iterateNetwork!(Φ, α, testInput, blankNetwork, testActivationMatrix))
-
 
 ## Testing / debugging functions
 ## Generating random phenotypes and showing that they'll have some invasion chance

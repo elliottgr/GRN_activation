@@ -63,8 +63,6 @@ end
 simulationResults = loadSimulationResults()[3]["simulationOutputs"]
 df = generateTabular(simulationResults)
 
-
-
 ## Plots of all data
 ################
 

@@ -104,9 +104,9 @@ end
     maxNetSize = 12
     maxNetWidth = 12
     netStepSize = 1
-    N = 1000
+    N = 1000000
     T = 5000
-    reps = 3
+    reps = 50
     filestring = "ActivationFunctionComparisons"
 end 
 

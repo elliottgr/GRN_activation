@@ -71,7 +71,6 @@ df = DataFrame(T = simulationResults["T"],
                replicateID = simulationResults["replicateID"]
 )
 
-df = generateTabular(simulationResults)
 
 ## Plots of all data
 ################

@@ -42,11 +42,12 @@ end
                 # nproc : $(nprocs()) (number of processes) \n"
     
         SimulationParameterSets = []
-
+        networkSizes = []
         for polyDegree in envChallenges
             for activationFunction in activationFunctions
                 for i in minNetSize:netSizeStep:maxNetSize
                     push!(SimulationParameterSets, simParams(N, T, reps, activationFunction, activationScale, K, polyDegree, i, 1, μ_size))
+                    push!(networkSizes, (i, 1))
                 end
                 ## Need to account for the fact that the first layer doesn't process when determining active nodes
                 ## This generates all networks of the same "active" size, meaning they have the same number of nodes outside the input layer
@@ -54,12 +55,14 @@ end
                     if mod(maxNetSize, width) == 0 ## only iterating with valid network sizes
                         netDepth = Int((maxNetSize/width)+1)
                         push!(SimulationParameterSets, simParams(N, T, reps, activationFunction, activationScale, K, polyDegree, netDepth, width, μ_size))
+                        push!(networkSizes, (netDepth, width))
                     end
                 end
             end    
         end
-
-        print("Running simulations... \n")
+        print("Succesfully generated $(length(networkSizes)) parameter sets, testing network sizes (Depth, Width): \n")
+        [print(x, ",  ") for x in unique(networkSizes)]
+        print("\n Running simulations... \n")
         outputComparisons = pmap(simulate, SimulationParameterSets)
         print("...done! Merging dataframes and saving to $dateString \n")
 
@@ -68,11 +71,11 @@ end
         jldsave(dateString; simulationOutputs)
         
     end
-    minNetSize = 2
-    minNetWidth = 2
-    maxNetSize = 2
-    maxNetWidth = 2
-    netStepSize = 2
+    minNetSize = 1
+    minNetWidth = 1
+    maxNetSize = 4
+    maxNetWidth = 4
+    netStepSize = 1
     N = 100
     T = 1000
     reps = 3

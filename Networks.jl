@@ -4,7 +4,7 @@
 ## Need to use the Legendre Polynomial package to calculate arbitrary degree LPs
 ## Statistics is used to quickly calculate variance for the fitness function
 ## StatsBase is used for sampling when calculating which weight to mutate
-using LegendrePolynomials, Statistics, StatsBase
+using LegendrePolynomials, Statistics, StatsBase, Random
 import Base: copy, copy!, (==), size
 
 ## Generates a randomized network containing 
@@ -232,42 +232,60 @@ function simulate(parameters::simParams)
     netDepth = parameters.netDepth
     netWidth = parameters.netWidth
     μ_size = parameters.μ_size
+    netSaveStep = 1000
 
     ## Generates a random network, then mutates it
-    netSaveStep = 1000
-    fitnessHistories = [fill(0.0, Int(T/netSaveStep)) for _ in 1:reps]
-    invasionProbabilities = [fill(0.0, Int(T/netSaveStep)) for _ in 1:reps]
+    fitnessHistories = fill(0.0, Int(T*reps/netSaveStep))
+    initialNetworks = [generateFilledNetwork(netDepth, netWidth, 0.0) for _ in 1:reps]
     finalNetworks = [generateFilledNetwork(netDepth, netWidth, 0.0) for _ in 1:reps]
+    replicateIDs = fill("", Int(T*reps/netSaveStep))
+    timesteps = fill(0, Int(T*reps/netSaveStep))
     for r in 1:reps
+        
         resNet = generateNetwork(netDepth, netWidth) ## Initial resident network
+        replicateID = randstring(25) ## generates a long ID to uniquely identify replicates
+        copy!(initialNetworks[r], resNet) ## saving this for later :)
         mutNet = copy(resNet)
 
         ## Main timestep loop
         for t in 1:T
+
             copy!(mutNet, resNet)
             mutateNetwork!(μ_size, mutNet)
 
             invasionProb, resFitness, mutFitness = invasionProbability(activationFunction, activationScale, K, polyDegree, N, resNet, mutNet)
-            if mod(t, netSaveStep) == 0
-                invasionProbabilities[r][Int(t/netSaveStep)] = invasionProb
-            end
-
             if rand() <= invasionProb
                 copy!(resNet, mutNet)
                 if mod(t, netSaveStep) == 0
-                    fitnessHistories[r][Int(t/netSaveStep)] = mutFitness
+                    fitnessHistories[Int(r*t/netSaveStep)] = mutFitness
                 end
             else
                 if mod(t, netSaveStep) == 0
-                    fitnessHistories[r][Int(t/netSaveStep)] = resFitness
+                    fitnessHistories[Int(r*t/netSaveStep)] = resFitness
                 end
-            end            
+            end
+            if mod(t, netSaveStep) == 0
+                replicateIDs[Int(r*t/netSaveStep)] = replicateID
+                timesteps[Int(r*t/netSaveStep)] = t
+            end
 
         end
 
         copy!(finalNetworks[r], resNet)
     end
-    return [fitnessHistories, invasionProbabilities, finalNetworks]
+    OutputDict = Dict([ ("T", timesteps),
+                        ("N", fill(N, Int(T*reps/netSaveStep))),
+                        ("activationFunction", fill(String(Symbol(activationFunction)), Int(T*reps/netSaveStep))),
+                        ("K", fill(K, Int(T*reps/netSaveStep))),
+                        ("envChallenge", fill(polyDegree, Int(T*reps/netSaveStep))),
+                        ("netDepth", fill(netDepth, Int(T*reps/netSaveStep))),
+                        ("netWidth", fill(netWidth, Int(T*reps/netSaveStep))),
+                        ("μ_size", fill(μ_size, Int(T*reps/netSaveStep))),
+                        ("fitness", fitnessHistories),
+                        ("initialNetworks", initialNetworks),
+                        ("finalNetworks", finalNetworks),
+                        ("replicateID", replicateIDs)])
+    return OutputDict
 end
 
 

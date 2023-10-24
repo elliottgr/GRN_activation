@@ -3,8 +3,6 @@
 
 using JLD2, StatsPlots, DataFrames
 include("Networks.jl")
-
-
 ## Can access the files in the following way:
 ## simulationData[fileNumber]["simulationOutputs"][envChallenge][experimentType][networkSize][timeseries/invProb/networks]
 
@@ -60,7 +58,19 @@ function generateTabular(simulationResults)
     replicateID = replicateID)
 end
 
-simulationResults = loadSimulationResults()[3]["simulationOutputs"]
+simulationResults = loadSimulationResults()[4]["simulationOutputs"]
+df = DataFrame(T = simulationResults["T"],
+               N = simulationResults["N"],
+               activationFunction = simulationResults["activationFunction"] ,
+               K = simulationResults["K"],
+               envChallenge = simulationResults["envChallenge"],
+               netDepth = simulationResults["netDepth"],
+               netWidth = simulationResults["netWidth"],
+               μ_size = simulationResults["μ_size"],
+               fitness = simulationResults["fitness"],
+               replicateID = simulationResults["replicateID"]
+)
+
 df = generateTabular(simulationResults)
 
 ## Plots of all data

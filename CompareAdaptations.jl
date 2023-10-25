@@ -31,7 +31,7 @@ end
         end
         activationFunctions = [Logistic]
         activationScale = 1.0
-        K = 5.0
+        α, β, γ, K = (1.0, 1.0, 1.0, 5.0)
         envChallenges = [1,2,3,4,5] ## Vector of each polynomial degree to check
         μ_size = .1
         simulationOutputs = Dict() ## Dictionary where the keys are parameters (environmental challenge)

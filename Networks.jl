@@ -93,7 +93,7 @@ function calcOj(parameters::simParams, j::Int, i::Int, activationMatrix, Wm, Wb)
         end
     end
     x += Wb[i, j]
-    return(activationFunction(parameters.activationScale * x, parameters.α, parameters.β, parameters.γ)) 
+    return(parameters.activationFunction(parameters.activationScale * x, parameters.α, parameters.β, parameters.γ)) 
 end
 
 
@@ -109,10 +109,9 @@ function iterateNetwork!(parameters::simParams, input, network::Network, activat
     ## iterating over calcOj() for each node
     
     Wm, Wb = network.Wm, network.Wb
-    netDepth, netWidth = size(network)
     activationMatrix[1, :] = input ## whatever vector gets passed as the initial response
-    for i in 2:netDepth ## Iterating over each layer
-        for j in 1:netWidth ## iterating over each node
+    for i in 2:parameters.netDepth ## Iterating over each layer
+        for j in 1:parameters.netWidth ## iterating over each node
             activationMatrix[i, j] = calcOj(parameters, j, i, activationMatrix, Wm, Wb)
         end
     end
@@ -127,15 +126,14 @@ end
 
 ## this function measures the fit of the network versus the chosen legendre polynomial 
 function measureNetwork(parameters, network::Network, envRange)
-    netDepth, netWidth = size(network)
     x = 0
-    input = fill(0.0, netWidth)
+    input = fill(0.0, parameters.netWidth)
     for i in envRange
-        activationMatrix = zeros(netDepth, netWidth) ## size of the bias vector
+        activationMatrix = zeros(parameters.netDepth, parameters.netWidth) ## size of the bias vector
         input[1] = i
         iterateNetwork!(parameters, input, network, activationMatrix)
-        N_i = activationMatrix[netDepth, netWidth]
-        R_i = PlNormalized(i, parameters.polynomialDegree, 0, 1)
+        N_i = activationMatrix[parameters.netDepth, parameters.netWidth]
+        R_i = PlNormalized(i, parameters.polyDegree, 0, 1)
         x += (N_i - R_i) ^2
     end
     return x
@@ -143,34 +141,32 @@ end
 
 function fitness(parameters, network)
     envRange = -1:0.02:1
-    Var_F = var([PlNormalized(i, parameters.polynomialDegree, 0, 1) for i in envRange])
-    return exp((-K * (measureNetwork(parameters, network, envRange))) / (length(envRange)*Var_F))
+    Var_F = var([PlNormalized(i, parameters.polyDegree, 0, 1) for i in envRange])
+    return exp((-parameters.K * (measureNetwork(parameters, network, envRange))) / (length(envRange)*Var_F))
 end
 
-function mutateNetwork(μ_size, network::Network)
+function mutateNetwork(parameters, network::Network)
 
     ## samples a random weight and shifts it
     ## Le Nagard method
 
-    netDepth, netWidth = size(network)
-
     ## Need to allocate a new array and fill it 
     ## copy() of the original network doesn't allocate new elements
     ## so the output network overwrites the old one
-    newNetwork = generateFilledNetwork(netDepth, netWidth, 0.0)
+    newNetwork = generateFilledNetwork(parameters.netDepth, parameters.netWidth, 0.0)
     copy!(newNetwork, network)
 
-    mutationSize = randn()*μ_size
+    mutationSize = randn()*parameters.μ_size
 
     ## Randomly selecting a weight (i,j,k,l) to mutate
     ## A large portion of them are "silent mutations"
     ## because only a fraction of the mutants will change network outputs
     ## k = 0 will simply be the bias vectors
     while newNetwork == network
-        i = sample(1:netDepth)
-        j = sample(1:netWidth)
+        i = sample(1:parameters.netDepth)
+        j = sample(1:parameters.netWidth)
         k = sample(0:i-1)
-        l = sample(1:netWidth)
+        l = sample(1:parameters.netWidth)
 
         if k > 0
             newNetwork.Wm[i, j][k, l] += mutationSize
@@ -181,19 +177,17 @@ function mutateNetwork(μ_size, network::Network)
     return newNetwork
 end
 
-function mutateNetwork!(μ_size, network::Network)
+function mutateNetwork!(parameters, network::Network)
 
     ## samples a random weight and shifts it
     ## Le Nagard method
 
-    netDepth, netWidth = size(network)
+    mutationSize = randn()*parameters.μ_size
 
-    mutationSize = randn()*μ_size
-
-    i = sample(1:netDepth)
-    j = sample(1:netWidth)
+    i = sample(1:parameters.netDepth)
+    j = sample(1:parameters.netWidth)
     k = sample(0:i-1)
-    l = sample(1:netWidth)
+    l = sample(1:parameters.netWidth)
 
     if k > 0
         network.Wm[i, j][k, l] += mutationSize
@@ -226,16 +220,16 @@ function simulate(parameters::simParams)
 
     netSaveStep = 1000
     totalTimesteps = Int(parameters.T*parameters.reps/netSaveStep)
-    
+
     ## Generates a random network, then mutates it
     fitnessHistories = fill(0.0, totalTimesteps)
-    initialNetworks = [generateFilledNetwork(netDepth, netWidth, 0.0) for _ in 1:parameters.reps]
-    finalNetworks = [generateFilledNetwork(netDepth, netWidth, 0.0) for _ in 1:parameters.reps]
+    initialNetworks = [generateFilledNetwork(parameters.netDepth, parameters.netWidth, 0.0) for _ in 1:parameters.reps]
+    finalNetworks = [generateFilledNetwork(parameters.netDepth, parameters.netWidth, 0.0) for _ in 1:parameters.reps]
     replicateIDs = fill("", totalTimesteps)
     timesteps = fill(0, totalTimesteps)
     for r in 1:parameters.reps
         
-        resNet = generateNetwork(netDepth, netWidth) ## Initial resident network
+        resNet = generateNetwork(parameters.netDepth, parameters.netWidth) ## Initial resident network
         replicateID = randstring(25) ## generates a long ID to uniquely identify replicates
         copy!(initialNetworks[r], resNet) ## saving this for later :)
         mutNet = copy(resNet)
@@ -244,8 +238,7 @@ function simulate(parameters::simParams)
         for t in 1:T
 
             copy!(mutNet, resNet)
-            mutateNetwork!(parameters.μ_size, mutNet)
-
+            mutateNetwork!(parameters, mutNet)
             invasionProb, resFitness, mutFitness = invasionProbability(parameters, resNet, mutNet)
             if rand() <= invasionProb
                 copy!(resNet, mutNet)
@@ -275,47 +268,12 @@ function simulate(parameters::simParams)
                         ("γ", fill(parameters.γ, totalTimesteps)),
                         ("K", fill(parameters.K, totalTimesteps)),
                         ("envChallenge", fill(parameters.polyDegree, totalTimesteps)),
-                        ("netDepth", fill(netDepth, totalTimesteps)),
-                        ("netWidth", fill(netWidth, totalTimesteps)),
+                        ("netDepth", fill(parameters.netDepth, totalTimesteps)),
+                        ("netWidth", fill(parameters.netWidth, totalTimesteps)),
                         ("μ_size", fill(parameters.μ_size, totalTimesteps)),
                         ("fitness", fitnessHistories),
                         ("initialNetworks", initialNetworks),
                         ("finalNetworks", finalNetworks),
                         ("replicateID", replicateIDs)])
     return OutputDict
-end
-
-
-##############################################
-## Unit Testing and Debugging functions
-##############################################
-
-## Testing that mutation can generate new mutants without overwriting the old individual
-function testMutationFunction(netDepth=50, netWidth=10)
-    count = 0
-    for _ in 1:100
-        testNetwork = generateNetwork(netDepth,netWidth)
-        testNetworkMutant = mutateNetwork(0.1, testNetwork)
-        if testNetwork != testNetworkMutant ## Checking mutation process
-            count+= 1
-        end
-    end
-    return count
-end
-
-## Testing / debugging functions
-## Generating random phenotypes and showing that they'll have some invasion chance
-function debugInvasionProbability(trials, netDepth, netWidth)
-    resNet = generateNetwork(netDepth, netWidth)
-    testHistory = fill(0.0, trials)
-    Φ(x) = (1 - exp(-x^2))
-    α = 1.0
-    K = 1.0
-    polyDegree = 1
-    N = 100
-    for t in 1:trials
-        mutNet = generateNetwork(netDepth, netWidth)
-        testHistory[t] = invasionProbability(Φ, α, K, 1, N, resNet, mutNet)
-    end
-    return testHistory
 end

@@ -17,21 +17,22 @@ end
         dateString = string(filestring, Dates.now(), ".jld2")
         ##Global Parameters for all simulations
         
+        
         ## activation functions are Le Nagard's Exp (inverse Gaussian), the Gaussian Function, the Logistic function, and the Binary Step function
-        LeNagardExp(x) = 1 - exp(-x^2)
-        Gaussian(x) = exp(-x^2)
-        Logistic(x) = 1/(1+exp(-x))
-        function BinaryStep(x)
+        LeNagardExp(x, α, β, γ) = 1 - exp(-x^2)
+        Gaussian(x, α, β, γ) = exp(-x^2)
+        Logistic(x, α, β, γ = 1) = γ/(1+exp(-α * (x - β)))
+        function BinaryStep(x, α, β, γ)
             if x < 0
                 return 0.0
             else
                 return 1.0
             end
         end
-        activationFunctions = [LeNagardExp, Gaussian, Logistic, BinaryStep]
+        activationFunctions = [Logistic]
         activationScale = 1.0
         K = 5.0
-        envChallenges = [1] ## Vector of each polynomial degree to check
+        envChallenges = [1,2,3,4,5] ## Vector of each polynomial degree to check
         μ_size = .1
         simulationOutputs = Dict() ## Dictionary where the keys are parameters (environmental challenge)
         print("Beginning simulations with \n 
@@ -46,7 +47,7 @@ end
         for polyDegree in envChallenges
             for activationFunction in activationFunctions
                 for i in minNetSize:netSizeStep:maxNetSize
-                    push!(SimulationParameterSets, simParams(N, T, reps, activationFunction, activationScale, K, polyDegree, i, 1, μ_size))
+                    push!(SimulationParameterSets, simParams(N, T, reps, activationFunction, α, β, γ, activationScale, K, polyDegree, i, 1, μ_size))
                     push!(networkSizes, (i, 1))
                 end
                 ## Need to account for the fact that the first layer doesn't process when determining active nodes
@@ -54,7 +55,7 @@ end
                 for width in minNetWidth:maxNetWidth
                     if mod(maxNetSize, width) == 0 ## only iterating with valid network sizes
                         netDepth = Int((maxNetSize/width)+1)
-                        push!(SimulationParameterSets, simParams(N, T, reps, activationFunction, activationScale, K, polyDegree, netDepth, width, μ_size))
+                        push!(SimulationParameterSets, simParams(N, T, reps, activationFunction, α, β, γ, activationScale, K, polyDegree, netDepth, width, μ_size))
                         push!(networkSizes, (netDepth, width))
                     end
                 end
@@ -66,7 +67,7 @@ end
         outputComparisons = pmap(simulate, SimulationParameterSets)
         print("...done! Merging dataframes and saving to $dateString \n")
 
-        simulationOutputs = merge(outputComparisons...)
+        simulationOutputs = mergewith(vcat, outputComparisons...)
         
         jldsave(dateString; simulationOutputs)
         
@@ -80,6 +81,7 @@ end
     T = 1000
     reps = 3
     filestring = "PmapTesting"
+    
 end 
 
 @time simulationOutputs = generateSimulations(minNetSize, maxNetSize, minNetWidth, maxNetWidth, netStepSize, N, T, reps, filestring)

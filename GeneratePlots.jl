@@ -3,8 +3,6 @@
 
 using JLD2, StatsPlots, DataFrames
 include("Networks.jl")
-## Can access the files in the following way:
-## simulationData[fileNumber]["simulationOutputs"][envChallenge][experimentType][networkSize][timeseries/invProb/networks]
 
 function loadSimulationResults(path = pwd())
     simulationData = []
@@ -16,7 +14,7 @@ function loadSimulationResults(path = pwd())
     return simulationData
 end
 
-simulationResults = loadSimulationResults()[5]["simulationOutputs"]
+simulationResults = last(loadSimulationResults())["simulationOutputs"]
 df = DataFrame(T = simulationResults["T"],
                N = simulationResults["N"],
                activationFunction = simulationResults["activationFunction"] ,

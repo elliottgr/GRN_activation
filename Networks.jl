@@ -65,8 +65,25 @@ function generateFilledNetwork(netDepth, netWidth,val::Float64)
     return Network(Wm, Wb)
 end
 
+## Necessary to call the distributed workers in higher level scripts, kinda pointless for single threaded versions (will still work tho)
+struct simParams
+    N::Int
+    T::Int
+    reps::Int
+    activationFunction::Function
+    α::Float64
+    β::Float64
+    γ::Float64
+    activationScale::Float64
+    K::Float64
+    polyDegree::Int
+    netDepth::Int
+    netWidth::Int
+    μ_size::Float64
+end
+
 ## calcOj calculates the value of a single node j in layer i
-function calcOj(activationFunction::Function, activationScale::Float64, j::Int, i::Int, activationMatrix, Wm, Wb)
+function calcOj(parameters::simParams, j::Int, i::Int, activationMatrix, Wm, Wb)
     netWidth = size(Wb)[2]
     x = 0 ## activation
     for k in 1:(i-1)
@@ -76,7 +93,7 @@ function calcOj(activationFunction::Function, activationScale::Float64, j::Int, 
         end
     end
     x += Wb[i, j]
-    return(activationFunction(activationScale * x)) 
+    return(activationFunction(parameters.activationScale * x, parameters.α, parameters.β, parameters.γ)) 
 end
 
 
@@ -86,7 +103,7 @@ end
 ## N(g(i)) is just the network evaluation at some g(i) 
 ## Still calling the function iterateNetwork! for clarity, originally taken from socialGRN project
 
-function iterateNetwork!(activationFunction::Function, activationScale, input, network::Network, activationMatrix)
+function iterateNetwork!(parameters::simParams, input, network::Network, activationMatrix)
 
     ## Calculates the total output of the network,
     ## iterating over calcOj() for each node
@@ -96,7 +113,7 @@ function iterateNetwork!(activationFunction::Function, activationScale, input, n
     activationMatrix[1, :] = input ## whatever vector gets passed as the initial response
     for i in 2:netDepth ## Iterating over each layer
         for j in 1:netWidth ## iterating over each node
-            activationMatrix[i, j] = calcOj(activationFunction, activationScale, j, i, activationMatrix, Wm, Wb)
+            activationMatrix[i, j] = calcOj(parameters, j, i, activationMatrix, Wm, Wb)
         end
     end
     return activationMatrix
@@ -109,25 +126,25 @@ function PlNormalized(x, l, min, max)
 end
 
 ## this function measures the fit of the network versus the chosen legendre polynomial 
-function measureNetwork(activationFunction, activationScale, polynomialDegree, network::Network, envRange)
+function measureNetwork(parameters, network::Network, envRange)
     netDepth, netWidth = size(network)
     x = 0
     input = fill(0.0, netWidth)
     for i in envRange
         activationMatrix = zeros(netDepth, netWidth) ## size of the bias vector
         input[1] = i
-        iterateNetwork!(activationFunction, activationScale, input, network, activationMatrix)
+        iterateNetwork!(parameters, input, network, activationMatrix)
         N_i = activationMatrix[netDepth, netWidth]
-        R_i = PlNormalized(i, polynomialDegree, 0, 1)
+        R_i = PlNormalized(i, parameters.polynomialDegree, 0, 1)
         x += (N_i - R_i) ^2
     end
     return x
 end
 
-function fitness(activationFunction, activationScale, K, polynomialDegree, network)
+function fitness(parameters, network)
     envRange = -1:0.02:1
-    Var_F = var([PlNormalized(i, polynomialDegree, 0, 1) for i in envRange])
-    return exp((-K * (measureNetwork(activationFunction, activationScale, polynomialDegree, network, envRange))) / (length(envRange)*Var_F))
+    Var_F = var([PlNormalized(i, parameters.polynomialDegree, 0, 1) for i in envRange])
+    return exp((-K * (measureNetwork(parameters, network, envRange))) / (length(envRange)*Var_F))
 end
 
 function mutateNetwork(μ_size, network::Network)
@@ -185,25 +202,11 @@ function mutateNetwork!(μ_size, network::Network)
     end
 end
 
-## Necessary to call the distributed workers in higher level scripts, kinda pointless for single threaded versions (will still work tho)
-struct simParams
-    N::Int
-    T::Int
-    reps::Int
-    activationFunction::Function
-    activationScale::Float64
-    K::Float64
-    polyDegree::Int
-    netDepth::Int
-    netWidth::Int
-    μ_size::Float64
-end
-
 ## Equivalent to Eq. 5, P(f_0 -> f_i), in le Nagard (2011)
-function invasionProbability(activationFunction, activationScale, K, polynomialDegree, N, resNet::Network, mutNet::Network)
+function invasionProbability(parameters::simParams, resNet::Network, mutNet::Network)
 
-    resFitness = fitness(activationFunction, activationScale, K, polynomialDegree, resNet)
-    mutFitness = fitness(activationFunction, activationScale, K, polynomialDegree, mutNet)
+    resFitness = fitness(parameters, resNet)
+    mutFitness = fitness(parameters, mutNet)
     fitnessRatio =  resFitness / mutFitness
     if mutFitness == 0.0
         fixp = 0.0
@@ -221,26 +224,16 @@ end
 
 function simulate(parameters::simParams)
 
-    ## Unpacking the parameters object
-    N = parameters.N
-    T = parameters.T
-    reps = parameters.reps
-    activationFunction = parameters.activationFunction
-    activationScale = parameters.activationScale
-    K = parameters.K
-    polyDegree = parameters.polyDegree 
-    netDepth = parameters.netDepth
-    netWidth = parameters.netWidth
-    μ_size = parameters.μ_size
     netSaveStep = 1000
-
+    totalTimesteps = Int(parameters.T*parameters.reps/netSaveStep)
+    
     ## Generates a random network, then mutates it
-    fitnessHistories = fill(0.0, Int(T*reps/netSaveStep))
-    initialNetworks = [generateFilledNetwork(netDepth, netWidth, 0.0) for _ in 1:reps]
-    finalNetworks = [generateFilledNetwork(netDepth, netWidth, 0.0) for _ in 1:reps]
-    replicateIDs = fill("", Int(T*reps/netSaveStep))
-    timesteps = fill(0, Int(T*reps/netSaveStep))
-    for r in 1:reps
+    fitnessHistories = fill(0.0, totalTimesteps)
+    initialNetworks = [generateFilledNetwork(netDepth, netWidth, 0.0) for _ in 1:parameters.reps]
+    finalNetworks = [generateFilledNetwork(netDepth, netWidth, 0.0) for _ in 1:parameters.reps]
+    replicateIDs = fill("", totalTimesteps)
+    timesteps = fill(0, totalTimesteps)
+    for r in 1:parameters.reps
         
         resNet = generateNetwork(netDepth, netWidth) ## Initial resident network
         replicateID = randstring(25) ## generates a long ID to uniquely identify replicates
@@ -251,9 +244,9 @@ function simulate(parameters::simParams)
         for t in 1:T
 
             copy!(mutNet, resNet)
-            mutateNetwork!(μ_size, mutNet)
+            mutateNetwork!(parameters.μ_size, mutNet)
 
-            invasionProb, resFitness, mutFitness = invasionProbability(activationFunction, activationScale, K, polyDegree, N, resNet, mutNet)
+            invasionProb, resFitness, mutFitness = invasionProbability(parameters, resNet, mutNet)
             if rand() <= invasionProb
                 copy!(resNet, mutNet)
                 if mod(t, netSaveStep) == 0
@@ -274,13 +267,17 @@ function simulate(parameters::simParams)
         copy!(finalNetworks[r], resNet)
     end
     OutputDict = Dict([ ("T", timesteps),
-                        ("N", fill(N, Int(T*reps/netSaveStep))),
-                        ("activationFunction", fill(String(Symbol(activationFunction)), Int(T*reps/netSaveStep))),
-                        ("K", fill(K, Int(T*reps/netSaveStep))),
-                        ("envChallenge", fill(polyDegree, Int(T*reps/netSaveStep))),
-                        ("netDepth", fill(netDepth, Int(T*reps/netSaveStep))),
-                        ("netWidth", fill(netWidth, Int(T*reps/netSaveStep))),
-                        ("μ_size", fill(μ_size, Int(T*reps/netSaveStep))),
+                        ("N", fill(N, totalTimesteps)),
+                        ("activationFunction", fill(String(Symbol(parameters.activationFunction)), totalTimesteps)),
+                        ("activationScale", fill(parameters.activationScale, totalTimesteps)),
+                        ("α", fill(parameters.α, totalTimesteps)),
+                        ("β", fill(parameters.β, totalTimesteps)),
+                        ("γ", fill(parameters.γ, totalTimesteps)),
+                        ("K", fill(parameters.K, totalTimesteps)),
+                        ("envChallenge", fill(parameters.polyDegree, totalTimesteps)),
+                        ("netDepth", fill(netDepth, totalTimesteps)),
+                        ("netWidth", fill(netWidth, totalTimesteps)),
+                        ("μ_size", fill(parameters.μ_size, totalTimesteps)),
                         ("fitness", fitnessHistories),
                         ("initialNetworks", initialNetworks),
                         ("finalNetworks", finalNetworks),

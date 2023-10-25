@@ -16,49 +16,7 @@ function loadSimulationResults(path = pwd())
     return simulationData
 end
 
-
-## generating a tabular dataset of the files
-function generateTabular(simulationResults)
-    T = []
-    envChallenge = []
-    netDepths = []
-    netWidths = []
-    fitnesses = []
-    experimentType = [] ## will update this to some sort of "ExperimentID in the future. For now, 1 = variation in depth, 2 = variation in width, >2 is activation function comparisons
-    replicateID = [] ## assigns a unique ID to each replicate
-    repID = 1
-    ## lot of nested loops :(
-    for envChal in keys(simulationResults)
-        for expType in 1:length(simulationResults[envChal])
-            for networkSizeIndex in 1:length(simulationResults[envChal][expType])
-                for replicate in 1:length(simulationResults[envChal][expType][networkSizeIndex][1])
-                    netDepth, netWidth = size(simulationResults[envChal][expType][networkSizeIndex][3][replicate])
-                    for t in 1:length(simulationResults[envChal][expType][networkSizeIndex][1][replicate])
-                        w = simulationResults[envChal][expType][networkSizeIndex][1][replicate][t]
-                        push!(T, t)
-                        push!(envChallenge, envChal)
-                        push!(netDepths, netDepth)
-                        push!(netWidths, netWidth)
-                        push!(fitnesses, w)
-                        push!(experimentType, expType)
-                        push!(replicateID, repID)
-                        
-                    end
-                    repID += 1
-                end
-            end
-        end
-    end
-    return DataFrame(T = T, 
-    envChallenge = envChallenge, 
-    netDepth = netDepths, 
-    netWidth = netWidths,
-    fitness = fitnesses,
-    experimentType = experimentType,
-    replicateID = replicateID)
-end
-
-simulationResults = loadSimulationResults()[4]["simulationOutputs"]
+simulationResults = loadSimulationResults()[5]["simulationOutputs"]
 df = DataFrame(T = simulationResults["T"],
                N = simulationResults["N"],
                activationFunction = simulationResults["activationFunction"] ,

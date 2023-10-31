@@ -29,7 +29,7 @@ end
                 return 1.0
             end
         end
-        activationFunctions = [Logistic]
+        activationFunctions = [LeNagardExp]
         activationScale = 1.0
         α, β, γ, K = (1.0, 0.0, 1.0, 5.0)
         envChallenges = [1,2,3,4,5] ## Vector of each polynomial degree to check
@@ -47,7 +47,8 @@ end
         networkSizes = []
 
         ## Main loop to create parameter sets
-        for a in [0.25, 0.5, 1.0, 2.0, 4.0, 16.0]
+        # for a in [0.25, 0.5, 1.0, 2.0, 4.0, 16.0]
+        for a in [1.0]
             for polyDegree in envChallenges
                 for activationFunction in activationFunctions
                     for i in minNetSize:netSizeStep:maxNetSize
@@ -80,14 +81,14 @@ end
     end
     minNetSize = 1
     minNetWidth = 1
-    maxNetSize = 6
-    maxNetWidth = 6
+    maxNetSize = 8
+    maxNetWidth = 12
     netStepSize = 1
     N = 1000
-    T = 250000
+    T = 1000000
     SaveStep = 10000
     reps = 50
-    filestring = "LogisticFunctionTests"
+    filestring = "ShortRangeRegulationTest"
     
 end 
 

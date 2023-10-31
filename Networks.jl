@@ -87,11 +87,9 @@ end
 function calcOj(parameters::simParams, j::Int, i::Int, activationMatrix, Wm, Wb)
     netWidth = size(Wb)[2]
     x = 0 ## activation
-    for k in 1:(i-1)
-        for l in 1:netWidth
-            ## Wm[i, j][k, l] is the network weight
-            x += (Wm[i, j][k, l] * activationMatrix[k, l])
-        end
+    k = i-1 ## only testing the layer immediately before the current one
+    for l in 1:netWidth
+        x += (Wm[i, j][k, l] * activationMatrix[k, l])
     end
     x += Wb[i, j]
     return(parameters.activationFunction(parameters.activationScale * x, parameters.α, parameters.β, parameters.γ)) 

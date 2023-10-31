@@ -69,6 +69,7 @@ end
 struct simParams
     N::Int
     T::Int
+    SaveStep::Int
     reps::Int
     activationFunction::Function
     α::Float64
@@ -217,9 +218,7 @@ function invasionProbability(parameters::simParams, resNet::Network, mutNet::Net
 end
 
 function simulate(parameters::simParams)
-
-    netSaveStep = 1000
-    totalTimesteps = Int(parameters.T*parameters.reps/netSaveStep)
+    totalTimesteps = Int(parameters.T*parameters.reps/parameters.SaveStep)
 
     ## Generates a random network, then mutates it
     fitnessHistories = fill(0.0, totalTimesteps)
@@ -242,17 +241,17 @@ function simulate(parameters::simParams)
             invasionProb, resFitness, mutFitness = invasionProbability(parameters, resNet, mutNet)
             if rand() <= invasionProb
                 copy!(resNet, mutNet)
-                if mod(t, netSaveStep) == 0
-                    fitnessHistories[Int(r*t/netSaveStep)] = mutFitness
+                if mod(t, parameters.SaveStep) == 0
+                    fitnessHistories[Int(r*t/parameters.SaveStep)] = mutFitness
                 end
             else
-                if mod(t, netSaveStep) == 0
-                    fitnessHistories[Int(r*t/netSaveStep)] = resFitness
+                if mod(t, parameters.SaveStep) == 0
+                    fitnessHistories[Int(r*t/parameters.SaveStep)] = resFitness
                 end
             end
-            if mod(t, netSaveStep) == 0
-                replicateIDs[Int(r*t/netSaveStep)] = replicateID
-                timesteps[Int(r*t/netSaveStep)] = t
+            if mod(t, parameters.SaveStep) == 0
+                replicateIDs[Int(r*t/parameters.SaveStep)] = replicateID
+                timesteps[Int(r*t/parameters.SaveStep)] = t
             end
 
         end

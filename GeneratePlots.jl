@@ -19,6 +19,9 @@ function loadSimulationResults(path = pwd())
                         N = simulationResults["N"],
                         activationFunction = simulationResults["activationFunction"] ,
                         K = simulationResults["K"],
+                        α = simulationResults["α"],
+                        β = simulationResults["β"],
+                        γ = simulationResults["γ"],
                         envChallenge = simulationResults["envChallenge"],
                         netDepth = simulationResults["netDepth"],
                         netWidth = simulationResults["netWidth"],
@@ -28,7 +31,7 @@ function loadSimulationResults(path = pwd())
                         filename = simulationResults["filename"])
 end
 
-df = loadSimulationResults()
+df = loadSimulationResults("/better_scratch/elliott/GRN_activation/")
 
 
 
@@ -39,7 +42,11 @@ minDepth, maxDepth = (1, 15)
 minWidth, maxWidth = (1, 15)
 minFitness, maxFitness = (0.15, 1.0)
 
+## plotting final fitness by increasing activation function steepness
+steepnessSelection = (df.activationFunction .== "Logistic") .& (df.netWidth .== 1) .& (df.netDepth .== 4)
+@df df[steepnessSelection, :] plot(:α, :fitness)
 
+## Depth Boxplots
 ncolors(df, dfSelection) = permutedims(repeat(collect(1:size(unique(df[dfSelection, [:netDepth, :netWidth]]))[1]),length(unique(df.envChallenge)))[:,:])
 colorScale(df, dfSelection) = [RGB(x,x,x) for x in 0.0:(1/size(unique(df[dfSelection, [:netDepth, :netWidth]]))[1]):1.0]
 labels(df, dfSelection) = permutedims(cat([string("Depth: ", label[1], ", ", "Width: ", label[2])  for label in eachrow(unique(df[dfSelection, [:netDepth, :netWidth]]))], 
@@ -49,6 +56,7 @@ labels(df, dfSelection) = permutedims(cat([string("Depth: ", label[1], ", ", "Wi
 ## plotting by depth
 depthSelection = (df.netWidth .== 1) .& (df.T .== maximum(df.T)) .& (df.netDepth .<= maxDepth) .& (df.netDepth .>= minDepth)
 @df df[depthSelection, :] boxplot(string.(tuple.(:envChallenge, :netDepth)), :fitness, group=(:envChallenge, :netDepth), color = ncolors(df, depthSelection), palette = colorScale(df, depthSelection), labels = labels(df, depthSelection), title = "Fitness for networks of size ≤ $maxDepth \n and environmental challenges ≤ $(maximum(:envChallenge))")
+
 ## plotting width and depth
 widthSelection = (df.netWidth .> minWidth) .& (df.T .== maximum(df.T)) .& (df.netDepth .<= maxDepth) .& ((df.netDepth .>= minDepth))
 @df df[widthSelection, :] boxplot(string.(tuple.(:envChallenge, :netDepth)), :fitness, color = ncolors(df, widthSelection), palette = colorScale(df, widthSelection), group=(:envChallenge, :netDepth), labels = labels(df, widthSelection), title = "Fitness for networks of depth ≤ $maxDepth & width ≤ $maxWidth) \n and environmental challenges ≤ $(maximum(:envChallenge))")

@@ -8,24 +8,28 @@ function loadSimulationResults(path = pwd())
     simulationData = []
     for file in readdir(path)
         if splitext(file)[2] == ".jld2"
-            push!(simulationData, JLD2.load(file))
+            simulationFile = JLD2.load(string(path, file))["simulationOutputs"]
+            simulationFile["filename"] = fill(file, length(simulationFile["fitness"]))
+            push!(simulationData, simulationFile)
+            print("Sucessfully loaded: $file with length $(length(simulationFile["fitness"])) entries \n")
         end
     end
-    return simulationData
+    simulationResults = mergewith(vcat, simulationData...)
+    return DataFrame(   T = simulationResults["T"],
+                        N = simulationResults["N"],
+                        activationFunction = simulationResults["activationFunction"] ,
+                        K = simulationResults["K"],
+                        envChallenge = simulationResults["envChallenge"],
+                        netDepth = simulationResults["netDepth"],
+                        netWidth = simulationResults["netWidth"],
+                        μ_size = simulationResults["μ_size"],
+                        fitness = simulationResults["fitness"],
+                        replicateID = simulationResults["replicateID"],
+                        filename = simulationResults["filename"])
 end
 
-simulationResults = last(loadSimulationResults())["simulationOutputs"]
-df = DataFrame(T = simulationResults["T"],
-               N = simulationResults["N"],
-               activationFunction = simulationResults["activationFunction"] ,
-               K = simulationResults["K"],
-               envChallenge = simulationResults["envChallenge"],
-               netDepth = simulationResults["netDepth"],
-               netWidth = simulationResults["netWidth"],
-               μ_size = simulationResults["μ_size"],
-               fitness = simulationResults["fitness"],
-               replicateID = simulationResults["replicateID"]
-)
+df = loadSimulationResults()
+
 
 
 ## Plots of all data

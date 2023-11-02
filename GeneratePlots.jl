@@ -42,9 +42,13 @@ minDepth, maxDepth = (1, 15)
 minWidth, maxWidth = (1, 15)
 minFitness, maxFitness = (0.15, 1.0)
 
+## plotting shortrange Boxplots
+shortrangeSelection = (df.filename .== "ShortRangeRegulationTest2023-11-01.jld2") .& (df.netWidth .== 1) .& (df.T .== maximum(df.T))
+@df df[shortrangeSelection, :] boxplot(string.(tuple.(:envChallenge, :netDepth)), :fitness, group=(:envChallenge, :netDepth), color = ncolors(df, depthSelection), palette = colorScale(df, depthSelection), labels = labels(df, depthSelection), title = "Fitness for networks of size ≤ $maxDepth \n and environmental challenges ≤ $(maximum(:envChallenge))")
+
 ## plotting final fitness by increasing activation function steepness
-steepnessSelection = (df.activationFunction .== "Logistic") .& (df.netWidth .== 1) .& (df.netDepth .== 4)
-@df df[steepnessSelection, :] plot(:α, :fitness)
+steepnessSelection = (df.activationFunction .== "Logistic")  .& (df.T .== maximum(df.T))
+@df df[steepnessSelection, :] scatter(:α, :fitness, color = :envChallenge)
 
 ## Depth Boxplots
 ncolors(df, dfSelection) = permutedims(repeat(collect(1:size(unique(df[dfSelection, [:netDepth, :netWidth]]))[1]),length(unique(df.envChallenge)))[:,:])

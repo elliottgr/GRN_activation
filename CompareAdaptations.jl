@@ -19,7 +19,7 @@ end
         dateString = string(filestring, Dates.now(), ".jld2")
 
         ## activation functions are Le Nagard's Exp (inverse Gaussian), the Gaussian Function, the Logistic function, and the Binary Step function
-        LeNagardExp(x, α, β, γ) = 1 - exp(-x^2)
+        LeNagardExp(x, α=1.0, β=0.0, γ = sqrt(1/2)) = 1 - (α * exp(-((x-β)^2/(2*(γ^2)))))
         Gaussian(x, α, β, γ) = exp(-x^2)
         Logistic(x, α = 1.0, β = 1.0, γ = 1.0) = γ/(1+exp(-α * (x - β)))
         function BinaryStep(x, α, β, γ)
@@ -79,17 +79,19 @@ end
         ## Seeing if we actually saved as many replicates as we started with
         print("Successfully saved $(length(unique(simulationOutputs[simulationOutputs.T .== maximum(simulationOutputs.T), :].replicateID))) replicates! \n")
     end
+    
     minNetSize = 1
     minNetWidth = 1
-    maxNetSize = 2
-    maxNetWidth = 2
+    maxNetSize = 12
+    maxNetWidth = 8
     netStepSize = 1
+    regulationDepth = maxNetSize + 1
     N = 1000
-    T = 10
-    SaveStep = 10
-    reps = 5
-    filestring = "TestingSaving"
+    T = 10^6
+    SaveStep = 10000
+    reps = 50
+    filestring = "InverseGaussianTests"
     
 end 
 
-@time simulationOutputs = generateSimulations(minNetSize, maxNetSize, minNetWidth, maxNetWidth, netStepSize, N, T, SaveStep, reps, filestring)
+@time simulationOutputs = generateSimulations(minNetSize, maxNetSize, minNetWidth, maxNetWidth, netStepSize, N, T, SaveStep, reps, regulationDepth, filestring)

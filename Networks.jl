@@ -80,16 +80,29 @@ struct simParams
     polyDegree::Int
     netDepth::Int
     netWidth::Int
+    regulationDepth::Int
     μ_size::Float64
 end
 
 ## calcOj calculates the value of a single node j in layer i
 function calcOj(parameters::simParams, j::Int, i::Int, activationMatrix, Wm, Wb)
+    
     netWidth = size(Wb)[2]
     x = 0 ## activation
-    k = i-1 ## only testing the layer immediately before the current one
-    for l in 1:netWidth
-        x += (Wm[i, j][k, l] * activationMatrix[k, l])
+
+    ## Making sure that we only iterate over layers that actually exist
+    if i-parameters.regulationDepth < 1
+        lowestLayer = 1
+    else 
+        lowestLayer = i-parameters.regulationDepth
+    end
+
+    ## Iterating over the layers :)
+    for k in lowestLayer:(i-1)
+        for l in 1:netWidth
+            ## Wm[i, j][k, l] is the network weight
+            x += (Wm[i, j][k, l] * activationMatrix[k, l])
+        end
     end
     x += Wb[i, j]
     return(parameters.activationFunction(parameters.activationScale * x, parameters.α, parameters.β, parameters.γ)) 
@@ -237,19 +250,17 @@ function simulate(parameters::simParams)
             copy!(mutNet, resNet)
             mutateNetwork!(parameters, mutNet)
             invasionProb, resFitness, mutFitness = invasionProbability(parameters, resNet, mutNet)
+
+            ## Testing Invasion
             if rand() <= invasionProb
                 copy!(resNet, mutNet)
-                if mod(t, parameters.SaveStep) == 0
-                    fitnessHistories[Int(r*t/parameters.SaveStep)] = mutFitness
-                end
-            else
-                if mod(t, parameters.SaveStep) == 0
-                    fitnessHistories[Int(r*t/parameters.SaveStep)] = resFitness
-                end
             end
+
+            ## Saving to outputs :)
             if mod(t, parameters.SaveStep) == 0
+                fitnessHistories[Int(r*t/parameters.SaveStep)] = copy(resFitness)
                 replicateIDs[Int(r*t/parameters.SaveStep)] = replicateID
-                timesteps[Int(r*t/parameters.SaveStep)] = t
+                timesteps[Int(r*t/parameters.SaveStep)] = copy(t)
             end
 
         end
@@ -267,6 +278,7 @@ function simulate(parameters::simParams)
                         ("envChallenge", fill(parameters.polyDegree, totalTimesteps)),
                         ("netDepth", fill(parameters.netDepth, totalTimesteps)),
                         ("netWidth", fill(parameters.netWidth, totalTimesteps)),
+                        ("regulationDepth", fill(parameters.regulationDepth, totalTimesteps)),
                         ("μ_size", fill(parameters.μ_size, totalTimesteps)),
                         ("fitness", fitnessHistories),
                         ("initialNetworks", initialNetworks),

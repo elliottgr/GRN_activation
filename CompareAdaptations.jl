@@ -11,13 +11,13 @@ nprocs()
 end
 
 @everywhere begin
-    using  JLD2, Dates ## For violin plots
+    using  JLD2, Dates, DataFrames
     include("Networks.jl")
-    function generateSimulations(minNetSize = 1, maxNetSize = 30, minNetWidth = 1, maxNetWidth = 30, netSizeStep = 5, N = 1000, T = 1000, SaveStep = 1000, reps = 10, filestring = "GRN_Adaptation_Comparisons_")
-        dateString = string(filestring, Dates.now(), ".jld2")
+    function generateSimulations(minNetSize = 1, maxNetSize = 30, minNetWidth = 1, maxNetWidth = 30, netSizeStep = 5, N = 1000, T = 1000, SaveStep = 1000, reps = 10, regulationDepth = 100, filestring = "GRN_Adaptation_Comparisons_")
+        
         ##Global Parameters for all simulations
-        
-        
+        dateString = string(filestring, Dates.now(), ".jld2")
+
         ## activation functions are Le Nagard's Exp (inverse Gaussian), the Gaussian Function, the Logistic function, and the Binary Step function
         LeNagardExp(x, α, β, γ) = 1 - exp(-x^2)
         Gaussian(x, α, β, γ) = exp(-x^2)
@@ -29,30 +29,30 @@ end
                 return 1.0
             end
         end
-        activationFunctions = [LeNagardExp]
+        activationFunctions = [LeNagardExp] ## add or remove as desired
         activationScale = 1.0
         α, β, γ, K = (1.0, 0.0, 1.0, 5.0)
         envChallenges = [1,2,3,4,5] ## Vector of each polynomial degree to check
-    
+        regulationDepth = 100
         μ_size = .1
         simulationOutputs = Dict() ## Dictionary where the keys are parameters (environmental challenge)
+        SimulationParameterSets = []
+        networkSizes = []
+        repCounter = 0
+
         print("Beginning simulations with \n 
                 maxNetSize : $maxNetSize \n 
                 N : $N (Population size) \n 
                 T : $T (Number of timesteps) \n 
                 reps : $reps (number of replicates) \n")
                 # nproc : $(nprocs()) (number of processes) \n"
-    
-        SimulationParameterSets = []
-        networkSizes = []
 
         ## Main loop to create parameter sets
-        # for a in [0.25, 0.5, 1.0, 2.0, 4.0, 16.0]
-        for a in [1.0]
+        for a in [0.25, 0.5, 1.0, 2.0, 4.0, 16.0]
             for polyDegree in envChallenges
                 for activationFunction in activationFunctions
                     for i in minNetSize:netSizeStep:maxNetSize
-                        push!(SimulationParameterSets, simParams(N, T, SaveStep, reps, activationFunction, a, β, γ, activationScale, K, polyDegree, i, 1, μ_size))
+                        push!(SimulationParameterSets, simParams(N, T, SaveStep, reps, activationFunction, a, β, γ, activationScale, K, polyDegree, i, 1, regulationDepth, μ_size))
                         push!(networkSizes, (i, 1))
                     end
                     ## Need to account for the fact that the first layer doesn't process when determining active nodes
@@ -60,7 +60,7 @@ end
                     for width in minNetWidth:maxNetWidth
                         if mod(maxNetSize, width) == 0 ## only iterating with valid network sizes
                             netDepth = Int((maxNetSize/width)+1)
-                            push!(SimulationParameterSets, simParams(N, T, SaveStep, reps, activationFunction, a, β, γ, activationScale, K, polyDegree, netDepth, width, μ_size))
+                            push!(SimulationParameterSets, simParams(N, T, SaveStep, reps, activationFunction, a, β, γ, activationScale, K, polyDegree, netDepth, width, regulationDepth, μ_size))
                             push!(networkSizes, (netDepth, width))
                         end
                     end
@@ -68,27 +68,27 @@ end
             end
         end
 
-        print("Succesfully generated $(length(networkSizes)) parameter sets, testing network sizes (Depth, Width): \n")
+        print("Succesfully generated $(length(networkSizes)) parameter sets with $(reps * length(networkSizes)) replicates, testing network sizes (Depth, Width): \n")
         [print(x, ",  ") for x in unique(networkSizes)]
         print("\n Running simulations... \n")
         outputComparisons = pmap(simulate, SimulationParameterSets)
         print("...done! Merging dataframes and saving to $dateString \n")
+        simulationOutputs = vcat(DataFrame.(outputComparisons)...)
+        jldsave(dateString; simulationOutputs) 
 
-        simulationOutputs = mergewith(vcat, outputComparisons...)
-        
-        jldsave(dateString; simulationOutputs)
-        
+        ## Seeing if we actually saved as many replicates as we started with
+        print("Successfully saved $(length(unique(simulationOutputs[simulationOutputs.T .== maximum(simulationOutputs.T), :].replicateID))) replicates! \n")
     end
     minNetSize = 1
     minNetWidth = 1
-    maxNetSize = 8
-    maxNetWidth = 12
+    maxNetSize = 2
+    maxNetWidth = 2
     netStepSize = 1
     N = 1000
-    T = 1000000
-    SaveStep = 10000
-    reps = 50
-    filestring = "ShortRangeRegulationTest"
+    T = 10
+    SaveStep = 10
+    reps = 5
+    filestring = "TestingSaving"
     
 end 
 

@@ -9,29 +9,16 @@ function loadSimulationResults(path = pwd())
     for file in readdir(path)
         if splitext(file)[2] == ".jld2"
             simulationFile = JLD2.load(string(path, file))["simulationOutputs"]
-            simulationFile["filename"] = fill(file, length(simulationFile["fitness"]))
+            simulationFile.filename = fill(file, length(simulationFile.fitness))
             push!(simulationData, simulationFile)
-            print("Sucessfully loaded: $file with length $(length(simulationFile["fitness"])) entries \n")
+            print("Sucessfully loaded: $file with length $(length(simulationFile.fitness)) entries of $(length(unique(simulationFile[simulationFile.T .== maximum(simulationFile.T), :].replicateID))) replicates \n")
         end
     end
-    simulationResults = mergewith(vcat, simulationData...)
-    return DataFrame(   T = simulationResults["T"],
-                        N = simulationResults["N"],
-                        activationFunction = simulationResults["activationFunction"] ,
-                        K = simulationResults["K"],
-                        α = simulationResults["α"],
-                        β = simulationResults["β"],
-                        γ = simulationResults["γ"],
-                        envChallenge = simulationResults["envChallenge"],
-                        netDepth = simulationResults["netDepth"],
-                        netWidth = simulationResults["netWidth"],
-                        μ_size = simulationResults["μ_size"],
-                        fitness = simulationResults["fitness"],
-                        replicateID = simulationResults["replicateID"],
-                        filename = simulationResults["filename"])
+    return vcat(simulationData...)
 end
 
 df = loadSimulationResults("/better_scratch/elliott/GRN_activation/")
+df = loadSimulationResults(string(pwd(), "/"))
 
 
 
@@ -43,7 +30,7 @@ minWidth, maxWidth = (1, 15)
 minFitness, maxFitness = (0.15, 1.0)
 
 ## plotting shortrange Boxplots
-shortrangeSelection = (df.filename .== "ShortRangeRegulationTest2023-11-01.jld2") .& (df.netWidth .== 1) .& (df.T .== maximum(df.T))
+shortrangeSelection = (df.regulationDepth .>= 1) .& (df.netWidth .== 1) .& (df.T .== maximum(df.T))
 @df df[shortrangeSelection, :] boxplot(string.(tuple.(:envChallenge, :netDepth)), :fitness, group=(:envChallenge, :netDepth), color = ncolors(df, depthSelection), palette = colorScale(df, depthSelection), labels = labels(df, depthSelection), title = "Fitness for networks of size ≤ $maxDepth \n and environmental challenges ≤ $(maximum(:envChallenge))")
 
 ## plotting final fitness by increasing activation function steepness

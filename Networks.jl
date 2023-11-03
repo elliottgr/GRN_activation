@@ -254,20 +254,23 @@ function simulate(parameters::simParams)
             ## Testing Invasion
             if rand() <= invasionProb
                 copy!(resNet, mutNet)
+                resFitness = copy(mutFitness)
             end
 
             ## Saving to outputs :)
             if mod(t, parameters.SaveStep) == 0
-                fitnessHistories[Int(r*t/parameters.SaveStep)] = copy(resFitness)
-                replicateIDs[Int(r*t/parameters.SaveStep)] = replicateID
-                timesteps[Int(r*t/parameters.SaveStep)] = copy(t)
+                i = Int((((r-1)*T) + t)/parameters.SaveStep)
+                fitnessHistories[i] = copy(resFitness)
+                replicateIDs[i] = replicateID
+                timesteps[i] = copy(t)
             end
 
         end
 
         copy!(finalNetworks[r], resNet)
     end
-    OutputDict = Dict([ ("T", timesteps),
+    OutputDict = Dict([ ("replicateID", replicateIDs),
+                        ("T", timesteps),
                         ("N", fill(N, totalTimesteps)),
                         ("activationFunction", fill(String(Symbol(parameters.activationFunction)), totalTimesteps)),
                         ("activationScale", fill(parameters.activationScale, totalTimesteps)),
@@ -280,9 +283,9 @@ function simulate(parameters::simParams)
                         ("netWidth", fill(parameters.netWidth, totalTimesteps)),
                         ("regulationDepth", fill(parameters.regulationDepth, totalTimesteps)),
                         ("μ_size", fill(parameters.μ_size, totalTimesteps)),
-                        ("fitness", fitnessHistories),
-                        ("initialNetworks", initialNetworks),
-                        ("finalNetworks", finalNetworks),
-                        ("replicateID", replicateIDs)])
+                        ("fitness", fitnessHistories)
+                        # ("initialNetworks", initialNetworks),
+                        # ("finalNetworks", finalNetworks),
+                        ])
     return OutputDict
 end

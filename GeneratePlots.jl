@@ -17,32 +17,68 @@ function loadSimulationResults(path = pwd())
     return vcat(simulationData...)
 end
 
-df = loadSimulationResults("/better_scratch/elliott/GRN_activation/")
-df = loadSimulationResults(string(pwd(), "/"))
+## Depth Boxplots Functions
+ncolors(df, dfSelection) = permutedims(repeat(collect(1:size(unique(df[dfSelection, [:netDepth, :netWidth]]))[1]),length(unique(df.envChallenge)))[:,:])
+colorScale(df, dfSelection) = [RGB(x,x,x) for x in 0.0:(1/size(unique(df[dfSelection, [:netDepth, :netWidth]]))[1]):1.0]
+labels(df, dfSelection) = permutedims(cat([string("Depth: ", label[1], ", ", "Width: ", label[2])  for label in eachrow(unique(df[dfSelection, [:netDepth, :netWidth]]))], 
+                                        fill("", (length(ncolors(df, dfSelection)) - size(unique(df[dfSelection, [:netDepth, :netWidth]]))[1])), 
+                                    dims =(1))[:,:])
 
 
 
 ## Plots of all data
 ################
 
+df = loadSimulationResults("/better_scratch/elliott/GRN_activation/")
+# df = loadSimulationResults(string(pwd(), "/"))
+
 minDepth, maxDepth = (1, 15)
 minWidth, maxWidth = (1, 15)
 minFitness, maxFitness = (0.15, 1.0)
 
-## plotting shortrange Boxplots
-shortrangeSelection = (df.regulationDepth .>= 1) .& (df.netWidth .== 1) .& (df.T .== maximum(df.T))
-@df df[shortrangeSelection, :] boxplot(string.(tuple.(:envChallenge, :netDepth)), :fitness, group=(:envChallenge, :netDepth), color = ncolors(df, depthSelection), palette = colorScale(df, depthSelection), labels = labels(df, depthSelection), title = "Fitness for networks of size ≤ $maxDepth \n and environmental challenges ≤ $(maximum(:envChallenge))")
+function plotRegulationDepth(df)
+    regDepthFilter = (df.netDepth .>= 3) .& (df.netWidth .== 1) .& (df.T .== maximum(df.T)) .& (df.activationFunction .== "Logistic") 
+    regDF = (groupby(df[regDepthFilter, :], :regulationDepth), :fitness=>mean)
+    outCols = []
+    for i in eachindex(regDF[1])
+        tempDF = combine(groupby(regDF[1][i], :netDepth), :fitness=>mean)
+        tempDF[!, :regulationDepth] = fill(regDF[1][i].regulationDepth[1], length(tempDF.fitness_mean))
+        push!(outCols, tempDF)
+    end
+    meanFitnessDF = vcat(outCols...)
+    plt = plot()
+    # colors = [RGB(x/length(meanFitnessDF.netDepth), x/length(meanFitnessDF.netDepth),x/length(meanFitnessDF.netDepth)) for x in 1:length(meanFitnessDF.netDepth)]
+    # print(colors)
+    i = 0
+    for netDepth in unique(meanFitnessDF.netDepth)
+        i+=1
+        xs = meanFitnessDF[(meanFitnessDF.netDepth .== netDepth), :regulationDepth]
+        ys = meanFitnessDF[(meanFitnessDF.netDepth .== netDepth), :fitness_mean]
+        plot!(xs, ys, label = netDepth,
+                title = "Comparison of regulation depth and fitness", 
+                xlabel = "Regulation Depth", 
+                ylabel = "Mean Fitness",
+                legend = :bottomright)
+    end
+    return plt
+end
+plotRegulationDepth(df)
 
 ## plotting final fitness by increasing activation function steepness
-steepnessSelection = (df.activationFunction .== "Logistic")  .& (df.T .== maximum(df.T))
-@df df[steepnessSelection, :] scatter(:α, :fitness, color = :envChallenge)
+function plotActivationFunctionSteepness(df)
+    depthMin = 3
+    depthMax = 12
+    plt = plot(title = "Comparison of activation function \n steepness and network fitness", xlabel = "α", ylabel = "Fitness")
+    colors = [RGB((x-depthMin)/depthMax, (x-depthMin)/depthMax, (x-depthMin)/depthMax) for x in depthMin:depthMax]
+    for depth in depthMin:2:depthMax
+        steepnessSelection = (df.activationFunction .== "LeNagardExp") .& (df.netDepth .== depth) .& (df.envChallenge .== 3) .& (df.T .== maximum(df.T)) .& (df.regulationDepth .> 1) 
+        α_df = combine(groupby(df[steepnessSelection, :], :α), :fitness=> mean)
+        plot!(plt, α_df.α, α_df.fitness_mean, label = depth, color = colors[depth-depthMin+1])
+    end
+    return plt
+end
 
-## Depth Boxplots
-ncolors(df, dfSelection) = permutedims(repeat(collect(1:size(unique(df[dfSelection, [:netDepth, :netWidth]]))[1]),length(unique(df.envChallenge)))[:,:])
-colorScale(df, dfSelection) = [RGB(x,x,x) for x in 0.0:(1/size(unique(df[dfSelection, [:netDepth, :netWidth]]))[1]):1.0]
-labels(df, dfSelection) = permutedims(cat([string("Depth: ", label[1], ", ", "Width: ", label[2])  for label in eachrow(unique(df[dfSelection, [:netDepth, :netWidth]]))], 
-                                        fill("", (length(ncolors(df, dfSelection)) - size(unique(df[dfSelection, [:netDepth, :netWidth]]))[1])), 
-                                    dims =(1))[:,:])
+plotActivationFunctionSteepness(df)
 
 ## plotting by depth
 depthSelection = (df.netWidth .== 1) .& (df.T .== maximum(df.T)) .& (df.netDepth .<= maxDepth) .& (df.netDepth .>= minDepth)
@@ -60,3 +96,7 @@ filteredDepthSelection = (df.fitness .>= minFitness) .& (df.netWidth .== 1) .& (
 ## Plots comparing by Activation function
 ActivationFunctionSelection = (df.T .== maximum(df.T) .& df.experimentType .>= 3)
 @df df[ActivationFunctionSelection, :] boxplot(string.(tuple.(:envChallenge, :experimentType)), :fitness, color = ncolors(df, ActivationFunctionSelection), palette = colorScale(df, ActivationFunctionSelection), group=(:envChallenge, :experimentType), labels = labels(df, ActivationFunctionSelection), title = "")
+
+## plotting shortrange Boxplots
+shortrangeSelection = (df.regulationDepth .>= 1) .& (df.netWidth .== 1) .& (df.T .== maximum(df.T))
+@df df[shortrangeSelection, :] boxplot(string.(tuple.(:envChallenge, :netDepth)), :fitness, group=(:envChallenge, :netDepth), color = ncolors(df, shortrangeSelection), palette = colorScale(df, shortrangeSelection), label = labels(df, shortrangeSelection), title = "Fitness for networks of size ≤ $maxDepth \n and environmental challenges ≤ $(maximum(:envChallenge))")

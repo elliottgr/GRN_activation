@@ -36,8 +36,17 @@ minDepth, maxDepth = (1, 15)
 minWidth, maxWidth = (1, 15)
 minFitness, maxFitness = (0.15, 1.0)
 
-function plotRegulationDepth(df)
-    regDepthFilter = (df.netDepth .>= 3) .& (df.netWidth .== 1) .& (df.T .== maximum(df.T)) .& (df.activationFunction .== "Logistic") 
+function plotRegulationDepth(df, T, maxDepth, activationFunction = "Logistic", filename = "")
+    minDepth = 3
+    if filename != ""
+        regDepthFilter = (df.filename .== filename) .& (df.regulationDepth .<= maxDepth) .& (df.netDepth .>= minDepth) .& (df.netWidth .== 1) .& (df.T .== T) .& (df.activationFunction .== activationFunction) 
+    else
+        regDepthFilter = (df.regulationDepth .<= maxDepth) .& (df.netDepth .>= minDepth) .& (df.netWidth .== 1) .& (df.T .== T) .& (df.activationFunction .== activationFunction) 
+    end
+
+    for i in 1:length(df.regulationDepth) ## bad code but w/e
+        df.regulationDepth[i] = minimum([df.regulationDepth[i], df.netDepth[i]])
+    end
     regDF = (groupby(df[regDepthFilter, :], :regulationDepth), :fitness=>mean)
     outCols = []
     for i in eachindex(regDF[1])
@@ -47,22 +56,24 @@ function plotRegulationDepth(df)
     end
     meanFitnessDF = vcat(outCols...)
     plt = plot()
-    # colors = [RGB(x/length(meanFitnessDF.netDepth), x/length(meanFitnessDF.netDepth),x/length(meanFitnessDF.netDepth)) for x in 1:length(meanFitnessDF.netDepth)]
-    # print(colors)
+    colors = [RGB(1-((x-minDepth)/maxDepth), 1-((x-minDepth)/maxDepth),1-((x-minDepth)/maxDepth)) for x in minDepth:maxDepth]
+    print(colors)
     i = 0
     for netDepth in unique(meanFitnessDF.netDepth)
         i+=1
+        print(colors[i], "\n")
         xs = meanFitnessDF[(meanFitnessDF.netDepth .== netDepth), :regulationDepth]
         ys = meanFitnessDF[(meanFitnessDF.netDepth .== netDepth), :fitness_mean]
         plot!(xs, ys, label = netDepth,
-                title = "Comparison of regulation depth and fitness", 
+                title = "Comparison of regulation depth and fitness \n for activation function \"$activationFunction\"", 
                 xlabel = "Regulation Depth", 
                 ylabel = "Mean Fitness",
-                legend = :bottomright)
+                legend = :bottomright,
+                color = colors[i])
     end
     return plt
 end
-plotRegulationDepth(df)
+plotRegulationDepth(df, maximum(df.T), 9, "Logistic", "RegulationDepth2023-11-16T13:34:38.043.jld2") 
 
 ## plotting final fitness by increasing activation function steepness
 function plotActivationFunctionSteepness(df)

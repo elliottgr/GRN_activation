@@ -218,9 +218,9 @@ function invasionProbability(parameters::simParams, resNet::Network, mutNet::Net
         fixp = 0.0
     else
         num = 1 - (fitnessRatio)^2
-        den = 1 - (fitnessRatio)^(2*N)
+        den = 1 - (fitnessRatio)^(2*parameters.N)
         if fitnessRatio == 1.0 
-            fixp = 1 / (2*N)
+            fixp = 1 / (2*parameters.N)
         else
             fixp = num/den
         end

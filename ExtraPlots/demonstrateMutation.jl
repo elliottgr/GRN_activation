@@ -1,7 +1,7 @@
 ## This file demonstrates some basic properties of network mutation and then makes a few plots :)
 
 using Plots
-include("$(dirname(pwd()))/Networks.jl")
+include("../Networks.jl")
 
 
 function generateParams(netDepth, netWidth)

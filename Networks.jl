@@ -157,55 +157,31 @@ function fitness(parameters, network)
     return exp((-parameters.K * (measureNetwork(parameters, network, envRange))) / (length(envRange)*Var_F))
 end
 
-function mutateNetwork(parameters, network::Network)
+function mutateNetwork!(parameters, network::Network, edgeSet)
 
     ## samples a random weight and shifts it
     ## Le Nagard method
-
-    ## Need to allocate a new array and fill it 
-    ## copy() of the original network doesn't allocate new elements
-    ## so the output network overwrites the old one
-    newNetwork = generateFilledNetwork(parameters.netDepth, parameters.netWidth, 0.0)
-    copy!(newNetwork, network)
-
     mutationSize = randn()*parameters.μ_size
-
-    ## Randomly selecting a weight (i,j,k,l) to mutate
-    ## A large portion of them are "silent mutations"
-    ## because only a fraction of the mutants will change network outputs
-    ## k = 0 will simply be the bias vectors
-    while newNetwork == network
-        i = sample(1:parameters.netDepth)
-        j = sample(1:parameters.netWidth)
-        k = sample(0:i-1)
-        l = sample(1:parameters.netWidth)
-
-        if k > 0
-            newNetwork.Wm[i, j][k, l] += mutationSize
-        else
-            newNetwork.Wb[i, j] += mutationSize
+    for edge in 1:length(edgeSet)
+        testEdge = generateEdge(parameters)
+        ## testing if first edge generated is a unique edge
+        ## this is a balance for performance, since manually
+        ## generating only unique edge samples ended up having sifnificant performance costs
+        if testEdge ∈ edgeSet
+            testEdge = generateEdge(parameters)
+        else 
+            edgeSet[edge] = testEdge
         end
     end
-    return newNetwork
-end
-
-function mutateNetwork!(parameters, network::Network)
-
-    ## samples a random weight and shifts it
-    ## Le Nagard method
-
-    mutationSize = randn()*parameters.μ_size
-
-    i = sample(1:parameters.netDepth)
-    j = sample(1:parameters.netWidth)
-    k = sample(0:i-1)
-    l = sample(1:parameters.netWidth)
-
-    if k > 0
-        network.Wm[i, j][k, l] += mutationSize
-    else
-        network.Wb[i, j] += mutationSize
+    for edge in edgeSet
+        i, j, k, l = edge
+        if k > 0
+            network.Wm[i, j][k, l] += mutationSize
+        else
+            network.Wb[i, j] += mutationSize
+        end
     end
+    return network
 end
 
 ## Equivalent to Eq. 5, P(f_0 -> f_i), in le Nagard (2011)

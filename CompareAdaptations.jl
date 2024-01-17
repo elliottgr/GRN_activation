@@ -52,24 +52,26 @@ end
                 # nproc : $(nprocs()) (number of processes) \n"
 
         ## Main loop to create parameter sets
-        for regulationDepth in [1, (maxNetSize+1)]
-            for a in [0.25, 0.5, 1.0, 1.25, 1.5 ,1.75, 2.0]
-                for polyDegree in envChallenges
-                    for activationFunction in activationFunctions
-                        for i in minNetSize:netSizeStep:maxNetSize
-                            push!(SimulationParameterSets, simParams(N, T, SaveStep, reps, activationFunction, a, β, γ, activationScale, K, polyDegree, i, 1, regulationDepth, μ_size))
-                            push!(networkSizes, (i, 1))
-                        end
-                        ## Need to account for the fact that the first layer doesn't process when determining active nodes
-                        ## This generates all networks of the same "active" size, meaning they have the same number of nodes outside the input layer
-                        for width in minNetWidth:maxNetWidth
-                            if mod(maxNetSize, width) == 0 ## only iterating with valid network sizes
-                                netDepth = Int((maxNetSize/width)+1)
-                                push!(SimulationParameterSets, simParams(N, T, SaveStep, reps, activationFunction, a, β, γ, activationScale, K, polyDegree, netDepth, width, regulationDepth, μ_size))
-                                push!(networkSizes, (netDepth, width))
+        for pleiotropyStrength in [1, 2, 4, 8]
+            for regulationDepth in [1, (maxNetSize+1)]
+                for a in [1.0]
+                    for polyDegree in envChallenges
+                        for activationFunction in activationFunctions
+                            for i in minNetSize:netSizeStep:maxNetSize
+                                push!(SimulationParameterSets, simParams(N, T, SaveStep, reps, activationFunction, a, β, γ, activationScale, K, polyDegree, i, 1, regulationDepth, μ_size, pleiotropyStrength))
+                                push!(networkSizes, (i, 1))
                             end
-                        end
-                    end    
+                            ## Need to account for the fact that the first layer doesn't process when determining active nodes
+                            ## This generates all networks of the same "active" size, meaning they have the same number of nodes outside the input layer
+                            for width in minNetWidth:maxNetWidth
+                                if mod(maxNetSize, width) == 0 ## only iterating with valid network sizes
+                                    netDepth = Int((maxNetSize/width)+1)
+                                    push!(SimulationParameterSets, simParams(N, T, SaveStep, reps, activationFunction, a, β, γ, activationScale, K, polyDegree, netDepth, width, regulationDepth, μ_size, pleiotropyStrength))
+                                    push!(networkSizes, (netDepth, width))
+                                end
+                            end
+                        end    
+                    end
                 end
             end
         end
@@ -86,9 +88,9 @@ end
         print("Successfully saved $(length(unique(simulationOutputs[simulationOutputs.T .== maximum(simulationOutputs.T), :].replicateID))) replicates! \n")
     end
     
-    minNetSize = 1
+    minNetSize = 5
     minNetWidth = 1
-    maxNetSize = 12
+    maxNetSize = 5
     maxNetWidth = 8
     netStepSize = 1
     regulationDepth = maxNetSize + 1
@@ -96,7 +98,7 @@ end
     T = 10
     SaveStep = 1
     reps = 50
-    filestring = "InverseGaussianTests"
+    filestring = "PleiotropyDebug"
     
 end 
 

@@ -82,6 +82,7 @@ struct simParams
     netWidth::Int
     regulationDepth::Int
     μ_size::Float64
+    pleiotropy::Int64
 end
 
 ## calcOj calculates the value of a single node j in layer i
@@ -157,6 +158,14 @@ function fitness(parameters, network)
     return exp((-parameters.K * (measureNetwork(parameters, network, envRange))) / (length(envRange)*Var_F))
 end
 
+function generateEdge(parameters) 
+    i = sample(1:parameters.netDepth)
+    j = sample(1:parameters.netWidth)
+    k = sample(0:i-1)
+    l = sample(1:parameters.netWidth)
+    return (i, j, k, l)
+end
+
 function mutateNetwork!(parameters, network::Network, edgeSet)
 
     ## samples a random weight and shifts it
@@ -219,12 +228,12 @@ function simulate(parameters::simParams)
         replicateID = randstring(25) ## generates a long ID to uniquely identify replicates
         copy!(initialNetworks[r], resNet) ## saving this for later :)
         mutNet = copy(resNet)
-
+        edgeSet = fill((1,1,1,1), parameters.pleiotropy)
         ## Main timestep loop
         for t in 1:T
 
             copy!(mutNet, resNet)
-            mutateNetwork!(parameters, mutNet)
+            mutateNetwork!(parameters, mutNet, edgeSet)
             invasionProb, resFitness, mutFitness = invasionProbability(parameters, resNet, mutNet)
 
             ## Testing Invasion
@@ -259,7 +268,8 @@ function simulate(parameters::simParams)
                         ("netWidth", fill(parameters.netWidth, totalTimesteps)),
                         ("regulationDepth", fill(parameters.regulationDepth, totalTimesteps)),
                         ("μ_size", fill(parameters.μ_size, totalTimesteps)),
-                        ("fitness", fitnessHistories)
+                        ("fitness", fitnessHistories),
+                        ("pleiotropy", fill(parameters.pleiotropy, totalTimesteps))
                         # ("initialNetworks", initialNetworks),
                         # ("finalNetworks", finalNetworks),
                         ])

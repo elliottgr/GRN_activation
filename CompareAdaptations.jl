@@ -58,6 +58,7 @@ end
                     for polyDegree in envChallenges
                         for activationFunction in activationFunctions
                             for i in minNetSize:netSizeStep:maxNetSize
+				pleiotropyStrength = minimum([pleiotropyStrength, i^2])
                                 push!(SimulationParameterSets, simParams(N, T, SaveStep, reps, activationFunction, a, β, γ, activationScale, K, polyDegree, i, 1, regulationDepth, μ_size, pleiotropyStrength))
                                 push!(networkSizes, (i, 1))
                             end
@@ -66,7 +67,8 @@ end
                             for width in minNetWidth:maxNetWidth
                                 if mod(maxNetSize, width) == 0 ## only iterating with valid network sizes
                                     netDepth = Int((maxNetSize/width)+1)
-                                    push!(SimulationParameterSets, simParams(N, T, SaveStep, reps, activationFunction, a, β, γ, activationScale, K, polyDegree, netDepth, width, regulationDepth, μ_size, pleiotropyStrength))
+                                pleiotropyStrength = minimum([pleiotropyStrength, netDepth^2])
+				    push!(SimulationParameterSets, simParams(N, T, SaveStep, reps, activationFunction, a, β, γ, activationScale, K, polyDegree, netDepth, width, regulationDepth, μ_size, pleiotropyStrength))
                                     push!(networkSizes, (netDepth, width))
                                 end
                             end
@@ -88,10 +90,10 @@ end
         print("Successfully saved $(length(unique(simulationOutputs[simulationOutputs.T .== maximum(simulationOutputs.T), :].replicateID))) replicates! \n")
     end
     
-    minNetSize = 5
+    minNetSize = 2
     minNetWidth = 1
-    maxNetSize = 5
-    maxNetWidth = 8
+    maxNetSize = 6
+    maxNetWidth = 6
     netStepSize = 1
     regulationDepth = maxNetSize + 1
     N = 1000

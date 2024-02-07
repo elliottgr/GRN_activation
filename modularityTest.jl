@@ -1,25 +1,19 @@
 ## Showing that modularity is related to regulation depth
-using Graphs, SimpleWeightedGraphs
+using Graphs, SimpleWeightedGraphs, Plots
 include("Networks.jl")
 
-function generateParams(netDepth, netWidth, saveStep, polyDegree)
+function generateParams(netDepth, netWidth, saveStep, polyDegree, regulationDepth)
     envRange = -1:0.01:1
     LeNagardExp(x, α=sqrt(1/2), β=0.0, γ = 1.0) = 1 - (γ * exp(-((x-β)^2/(2*(α^2)))))
-
-    regulationDepth = 1
     μ_size = 0.1
     return simParams(100, 10000, saveStep, 100, LeNagardExp, sqrt(1/2), 0.0, 1.0, 1.0, 5.0, polyDegree, netDepth, netWidth, regulationDepth, μ_size, 1)
 end
 
-netDepth, netWidth = (5, 3)
-parameters = generateParams(netDepth, netWidth, 1000, 3)
-network = generateFilledNetwork(netDepth, netWidth, 0.0)
 
-
-function generateOutNets(resNet, parameters)
+function generateOutNets(resNet, parameters, generations = 10000)
     outNets = []
     edgeSet = fill((1,1,1,1), parameters.pleiotropy)
-    for i in 1:10000
+    for i in 1:generations
         newNet = copy(resNet)
         mutateNetwork!(parameters, newNet, edgeSet)
         if fitness(parameters,newNet) >= fitness(parameters, resNet)
@@ -66,11 +60,30 @@ function generateGraph(network, parameters)
         end
     end
 
-    return g, partitions
+    return g
 end
 
-outNets = generateOutNets(network, parameters)
-for net in outNets
-    g, partitions = generateGraph(net, parameters)
-    print("\n",modularity(g, partitions), "\n")
+
+function main()
+    netDepth, netWidth = (5, 3)
+    regulationDepth = 5
+    saveStep = 1000
+    reps = 5
+    plt = plot()
+    for r in 1:reps
+        parameters = generateParams(netDepth, netWidth, saveStep, 3, regulationDepth)
+        network = generateFilledNetwork(netDepth, netWidth, 0.0)
+        generations = 10000
+        
+        outNets = generateOutNets(network, parameters, generations)
+
+        modularities = []
+        for net in outNets
+            g = generateGraph(net, parameters)
+            # print("\n",modularity(g, partitions), "\n")
+            push!(modularities, modularity(g, label_propagation(g)[1]))
+        end
+        plot!( modularities)
+    end
+    return plt
 end

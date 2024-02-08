@@ -105,11 +105,11 @@ end
     function main(filestring)
         dateString = string(filestring, Dates.now(), ".jld2")
         N = 1000
-        T = 10
+        T = 10^6
         netDepth, netWidth = (5, 3)
-        regulationDepth = 5
-        saveStep = 10
-        reps = 2
+        # regulationDepth = 5
+        saveStep = 100000
+        reps = 50
         Logistic(x, α = 1.0, β = 0.0, γ = 1.0) = γ/(1+exp(-α * (x - β)))
         α, β, γ = (1.0, 0.0, 1.0)
         activationScale = 1.0
@@ -118,8 +118,14 @@ end
         μ_size = 0.1
         pleiotropy = 1
 
+        ## Width 5 
         parameterSets = [simParams( N,T,saveStep,reps,Logistic,α,β,γ,activationScale,K,
-                polyDegree,netDepth,netWidth,regulationDepth,μ_size,pleiotropy    ) for regulationDepth in 1:3]
+                polyDegree,netDepth,netWidth,regulationDepth,μ_size,pleiotropy    ) for regulationDepth in 1:5]
+
+        ## Width 1
+        [push!(parameterSets, simParams( N,T,saveStep,reps,Logistic,α,β,γ,activationScale,K,
+        polyDegree,netDepth,1,regulationDepth,μ_size,pleiotropy)) for regulationDepth in 1:5]
+
         rawSimulationDataSets = pmap(simulateForModularity, parameterSets)
         SimulationData = vcat(DataFrame.(rawSimulationDataSets)...)
         selection = SimulationData[!, [:Networks, :netDepth, :netWidth, :regulationDepth]]
@@ -134,7 +140,7 @@ end
 
     end
 
-    filestring = "ModularityDebug"
+    filestring = "ModularityTests"
 end
 
-@time main("ModularityDebug")
+@time main("ModularityTests")

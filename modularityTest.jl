@@ -1,20 +1,22 @@
 ## Showing that modularity is related to regulation depth
-using Graphs, SimpleWeightedGraphs, Plots
+using Graphs, SimpleWeightedGraphs, Plots, DataFrames
 include("Networks.jl")
 
 
 ## simpler simulate loop to generate tabular data for modularity
 function simulateForModularity(parameters)
-    ## Generates a random network, then mutates it
-    finalFitnesses = fill(0.0, parameters.reps)
-    initialNetworks = [generateFilledNetwork(parameters.netDepth, parameters.netWidth, 0.0) for _ in 1:parameters.reps]
-    finalNetworks = [generateFilledNetwork(parameters.netDepth, parameters.netWidth, 0.0) for _ in 1:parameters.reps]
-    finalTimesteps = [parameters.T for _ in 1:parameters.reps]
+    totalTimesteps = Int(parameters.T*parameters.reps/parameters.SaveStep)
 
+    ## Generates a random network, then mutates it
+    fitnessHistories = fill(0.0, totalTimesteps)
+    Networks = [generateFilledNetwork(parameters.netDepth, parameters.netWidth, 0.0) for _ in 1:totalTimesteps]
+    # finalTimesteps = [parameters.T for _ in 1:parameters.reps]'
+    timesteps = fill(0, totalTimesteps)
+    regulationDepth = fill(parameters.regulationDepth, totalTimesteps)
     for r in 1:parameters.reps
         
         resNet = generateNetwork(parameters.netDepth, parameters.netWidth) ## Initial resident network
-        copy!(initialNetworks[r], resNet) ## saving this for later :)
+        ## saving this for later :)
         mutNet = copy(resNet)
         edgeSet = fill((1,1,1,1), parameters.pleiotropy)
         ## Main timestep loop
@@ -30,17 +32,22 @@ function simulateForModularity(parameters)
                 resFitness = copy(mutFitness)
             end
 
-            if t == parameters.T
-                finalFitnesses[r] = copy(resFitness)
+            if mod(t, parameters.SaveStep) == 0
+                
+                i = Int((((r-1)*T) + t)/parameters.SaveStep)
+                copy!(Networks[i], resNet) 
+                fitnessHistories[i] = copy(resFitness)
+
+                timesteps[i] = copy(t)
             end
+
         end
 
-        copy!(finalNetworks[r], resNet)
     end
-    OutputDict = Dict([ ("finalFitnesses", finalFitnesses),
-                        ("finalTimesteps", finalTimesteps),
-                        ("initialNetworks", initialNetworks),
-                        ("finalNetworks", finalNetworks)
+    OutputDict = Dict([ ("fitnessHistories", fitnessHistories),
+                        ("timesteps", timesteps),
+                        ("Networks", Networks),
+                        ("regulationDepth", regulationDepth)
                         ])
     return OutputDict
 end
@@ -99,7 +106,7 @@ end
 
 function main()
     N = 1000
-    T = 10000
+    T = 1000
     netDepth, netWidth = (5, 3)
     regulationDepth = 5
     saveStep = 1000
@@ -111,44 +118,16 @@ function main()
     polyDegree = 3
     μ_size = 0.1
     pleiotropy = 1
-    parameters = simParams(
-            N,
-            T,
-            saveStep,
-            reps,
-            Logistic,
-            α,
-            β,
-            γ,
-            activationScale,
-            K,
-            polyDegree,
-            netDepth,
-            netWidth,
-            regulationDepth,
-            μ_size,
-            pleiotropy
-        )
-    SimulationData = simulateForModularity(parameters)
-    InitialNetworkGraphs = [generateGraph(x, parameters) for x in SimulationData["initialNetworks"]]
-    FinalNetworkGraphs = [generateGraph(x, parameters) for x in SimulationData["finalNetworks"]]
-    InitialNetworkModularities = [modularity(g, label_propagation(g)[1]) for g in InitialNetworkGraphs]
-    FinalNetworkModularities = [modularity(g, label_propagation(g)[1]) for g in FinalNetworkGraphs]
 
-    OutputData = Dict([("InitialNetworkModularities", InitialNetworkModularities),
-                        ("FinalNetworkModularities", FinalNetworkModularities),
-                        ("finalFitnesses", SimulationData["finalFitnesses"]),
-                        ("finalTimesteps", SimulationData["finalTimesteps"])])
+    parameterSets = [simParams( N,T,saveStep,reps,Logistic,α,β,γ,activationScale,K,
+            polyDegree,netDepth,netWidth,regulationDepth,μ_size,pleiotropy    ) for regulationDepth in 1:2]
+    rawSimulationDataSets = map(simulateForModularity, parameterSets)
+    SimulationData = vcat(DataFrame.(rawSimulationDataSets)...)
+    NetworkGraphs = [generateGraph(x, parameters) for x in SimulationData[!, "Networks"]]
+    NetworkModularities = [modularity(g, label_propagation(g)[1]) for g in NetworkGraphs]
+    SimulationData["Modularity"] = NetworkModularities
+
     
     return OutputData
 
-end
-
-function generatePlot()
-    OutputData = main()
-    plt = plot()
-    for rep in 1:length(OutputData["finalTimesteps"])
-        plot!([1, OutputData["finalTimesteps"][rep]], [OutputData["InitialNetworkModularities"][rep], OutputData["FinalNetworkModularities"][rep]])
-    end
-    return plt
 end

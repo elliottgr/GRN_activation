@@ -13,6 +13,8 @@ function simulateForModularity(parameters)
     # finalTimesteps = [parameters.T for _ in 1:parameters.reps]'
     timesteps = fill(0, totalTimesteps)
     regulationDepth = fill(parameters.regulationDepth, totalTimesteps)
+    netDepth = fill(parameters.netDepth, totalTimesteps)
+    netWidth = fill(parameters.netWidth, totalTimesteps)
     for r in 1:parameters.reps
         
         resNet = generateNetwork(parameters.netDepth, parameters.netWidth) ## Initial resident network
@@ -34,7 +36,7 @@ function simulateForModularity(parameters)
 
             if mod(t, parameters.SaveStep) == 0
                 
-                i = Int((((r-1)*T) + t)/parameters.SaveStep)
+                i = Int((((r-1)*parameters.T) + t)/parameters.SaveStep)
                 copy!(Networks[i], resNet) 
                 fitnessHistories[i] = copy(resFitness)
 
@@ -47,36 +49,20 @@ function simulateForModularity(parameters)
     OutputDict = Dict([ ("fitnessHistories", fitnessHistories),
                         ("timesteps", timesteps),
                         ("Networks", Networks),
-                        ("regulationDepth", regulationDepth)
+                        ("regulationDepth", regulationDepth),
+                        ("netWidth", netWidth),
+                        ("netDepth", netDepth)
                         ])
     return OutputDict
 end
 
-function generateParams(activationFunction, netDepth, netWidth, saveStep, polyDegree, regulationDepth)
-    envRange = -1:0.01:1
-    μ_size = 0.1
-    return simParams(100, 10000, saveStep, 100, activationFunction, sqrt(1/2), 0.0, 1.0, 1.0, 5.0, polyDegree, netDepth, netWidth, regulationDepth, μ_size, 1)
+function generateGraph(Data::Tuple)
+    network, netDepth, netWidth, regulationDepth = Data
+    return generateGraph(network, netDepth, netWidth, regulationDepth)
 end
 
-
-function generateOutNets(resNet, parameters, generations = 10000)
-    outNets = []
-    edgeSet = fill((1,1,1,1), parameters.pleiotropy)
-    for i in 1:generations
-        newNet = copy(resNet)
-        mutateNetwork!(parameters, newNet, edgeSet)
-        if fitness(parameters,newNet) >= fitness(parameters, resNet)
-            resNet = newNet
-        end
-        if mod(i, parameters.SaveStep) == 0
-            push!(outNets, copy(resNet))
-        end
-    end
-    return outNets
-end
-
-function generateGraph(network, parameters)
-    netDepth, netWidth = parameters.netDepth, parameters.netWidth
+function generateGraph(network, netDepth, netWidth, regulationDepth)
+    netDepth, netWidth = netDepth, netWidth
     g = SimpleWeightedDiGraph()
     NodeDict = Dict()
     nodeID = 1
@@ -92,7 +78,7 @@ function generateGraph(network, parameters)
     ## generating all edges
     for i in 2:netDepth
         for j in 1:netWidth
-            for k in maximum([1, i-parameters.regulationDepth]):i-1
+            for k in maximum([1, i-regulationDepth]):i-1
                 for l in 1:netWidth
                     add_edge!(g, NodeDict[k,l], NodeDict[i,j], network.Wm[i, j][k, l])
                 end
@@ -106,11 +92,11 @@ end
 
 function main()
     N = 1000
-    T = 1000
+    T = 10
     netDepth, netWidth = (5, 3)
     regulationDepth = 5
-    saveStep = 1000
-    reps = 10
+    saveStep = 10
+    reps = 2
     Logistic(x, α = 1.0, β = 0.0, γ = 1.0) = γ/(1+exp(-α * (x - β)))
     α, β, γ = (1.0, 0.0, 1.0)
     activationScale = 1.0
@@ -120,14 +106,19 @@ function main()
     pleiotropy = 1
 
     parameterSets = [simParams( N,T,saveStep,reps,Logistic,α,β,γ,activationScale,K,
-            polyDegree,netDepth,netWidth,regulationDepth,μ_size,pleiotropy    ) for regulationDepth in 1:2]
+            polyDegree,netDepth,netWidth,regulationDepth,μ_size,pleiotropy    ) for regulationDepth in 1:3]
     rawSimulationDataSets = map(simulateForModularity, parameterSets)
     SimulationData = vcat(DataFrame.(rawSimulationDataSets)...)
-    NetworkGraphs = [generateGraph(x, parameters) for x in SimulationData[!, "Networks"]]
-    NetworkModularities = [modularity(g, label_propagation(g)[1]) for g in NetworkGraphs]
-    SimulationData["Modularity"] = NetworkModularities
+    selection = SimulationData[!, [:Networks, :netDepth, :netWidth, :regulationDepth]]
+    # return selection
+    NetworkGraphs = map(generateGraph,  Tuple.(eachrow(SimulationData[!, [:Networks, :netDepth, :netWidth, :regulationDepth]])))
+    NetworkLabels = getfield.(map(label_propagation, NetworkGraphs), 1)
+    NetworkModularities = [modularity(network, labels) for (network, labels) in zip(NetworkGraphs, NetworkLabels)]
+    SimulationData[!, :Modularity] = NetworkModularities
 
     
-    return OutputData
+    return SimulationData
 
 end
+
+

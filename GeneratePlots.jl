@@ -14,7 +14,7 @@ function loadSimulationResults(path = pwd())
             print("Sucessfully loaded: $file with length $(length(simulationFile.fitness)) entries of $(length(unique(simulationFile[simulationFile.T .== maximum(simulationFile.T), :].replicateID))) replicates \n")
         end
     end
-    return vcat(simulationData...)
+    return vcat(simulationData..., cols = :union)
 end
 
 ## Depth Boxplots Functions
@@ -36,18 +36,27 @@ minDepth, maxDepth = (1, 15)
 minWidth, maxWidth = (1, 15)
 minFitness, maxFitness = (0.15, 1.0)
 
+
+function plotPleiotropy(df, T, maxDepth, activationFunction = "Logistic", filename = "")
+    minDepth = 3
+    filter = (df.μ_size .== 0.1) .& (df.netDepth .<= maxDepth) .& (df.regulationDepth .<= maxDepth) .& (df.netDepth .>= minDepth) .& (df.T .== T) .& (df.activationFunction .== activationFunction) .& .!ismissing.(df.pleiotropy)
+    pleiodf = df[filter, :]
+    plt = plot()
+    for i in 3:6
+        selection = pleiodf[(pleiodf.netDepth .== i) .& (pleiodf.netWidth .== 1) .& (pleiodf.envChallenge .== 1), :]
+        plt = scatter!(selection.pleiotropy, selection.fitness)
+    end
+    return plt
+end
+
 function plotRegulationDepth(df, T, maxDepth, activationFunction = "Logistic", filename = "")
     minDepth = 3
-    if filename != ""
-        regDepthFilter = (df.filename .== filename) .& (df.regulationDepth .<= maxDepth) .& (df.netDepth .>= minDepth) .& (df.netWidth .== 1) .& (df.T .== T) .& (df.activationFunction .== activationFunction) 
-    else
-        regDepthFilter = (df.regulationDepth .<= maxDepth) .& (df.netDepth .>= minDepth) .& (df.netWidth .== 1) .& (df.T .== T) .& (df.activationFunction .== activationFunction) 
-    end
-
     for i in 1:length(df.regulationDepth) ## bad code but w/e
         df.regulationDepth[i] = minimum([df.regulationDepth[i], df.netDepth[i]])
     end
-    regDF = (groupby(df[regDepthFilter, :], :regulationDepth), :fitness=>mean)
+
+    filter = (df.μ_size .== 0.1) .& (df.netDepth .<= maxDepth) .& (df.regulationDepth .<= maxDepth) .& (df.netDepth .>= minDepth) .& (df.netWidth .== 1) .& (df.T .== T) .& (df.activationFunction .== activationFunction) 
+    regDF = (groupby(df[filter, :], :regulationDepth), :fitness=>mean)
     outCols = []
     for i in eachindex(regDF[1])
         tempDF = combine(groupby(regDF[1][i], :netDepth), :fitness=>mean)
@@ -56,40 +65,60 @@ function plotRegulationDepth(df, T, maxDepth, activationFunction = "Logistic", f
     end
     meanFitnessDF = vcat(outCols...)
     plt = plot()
-    colors = [RGB(1-((x-minDepth)/maxDepth), 1-((x-minDepth)/maxDepth),1-((x-minDepth)/maxDepth)) for x in minDepth:maxDepth]
-    print(colors)
+    # colors = [RGB(1-((x-minDepth)/maxDepth), 1-((x-minDepth)/maxDepth),1-((x-minDepth)/maxDepth)) for x in minDepth:maxDepth]
+    # print(colors)
     i = 0
     for netDepth in unique(meanFitnessDF.netDepth)
         i+=1
-        print(colors[i], "\n")
         xs = meanFitnessDF[(meanFitnessDF.netDepth .== netDepth), :regulationDepth]
         ys = meanFitnessDF[(meanFitnessDF.netDepth .== netDepth), :fitness_mean]
         plot!(xs, ys, label = netDepth,
                 title = "Comparison of regulation depth and fitness \n for activation function \"$activationFunction\"", 
                 xlabel = "Regulation Depth", 
                 ylabel = "Mean Fitness",
-                legend = :bottomright,
-                color = colors[i])
+                legend = :bottomright)
     end
     return plt
 end
-plotRegulationDepth(df, maximum(df.T), 9, "Logistic", "RegulationDepth2023-11-16T13:34:38.043.jld2") 
+plotRegulationDepth(df[(df.filename .== "RegulationDepth2023-11-16T13:34:38.043.jld2"), :], maximum(df.T), 9, "Logistic", "") 
+plotRegulationDepth(df[(df.filename .== "RegulationDepth2023-11-16T13:34:38.043.jld2"), :], maximum(df.T), 9, "LeNagardExp")
 
 ## plotting final fitness by increasing activation function steepness
-function plotActivationFunctionSteepness(df)
+function plotActivationFunctionSteepness(df, envChallenge = 3, activationFunction = "Logistic")
     depthMin = 3
     depthMax = 12
-    plt = plot(title = "Comparison of activation function \n steepness and network fitness", xlabel = "α", ylabel = "Fitness")
+    plt = plot(title = "Comparison of $activationFunction activation function \n steepness and network fitness", xlabel = "α", ylabel = "Fitness")
     colors = [RGB((x-depthMin)/depthMax, (x-depthMin)/depthMax, (x-depthMin)/depthMax) for x in depthMin:depthMax]
     for depth in depthMin:2:depthMax
-        steepnessSelection = (df.activationFunction .== "LeNagardExp") .& (df.netDepth .== depth) .& (df.envChallenge .== 3) .& (df.T .== maximum(df.T)) .& (df.regulationDepth .> 1) 
-        α_df = combine(groupby(df[steepnessSelection, :], :α), :fitness=> mean)
+        steepnessSelection = (df.μ_size .== 0.1) .& (df.activationFunction .== activationFunction) .& (df.netDepth .== depth) .& (df.envChallenge .== envChallenge) .& (df.T .== maximum(df.T)) .& (df.regulationDepth .>= depth) 
+        α_df = sort!(combine(groupby(df[steepnessSelection, :], :α), :fitness=> mean), :α)
+        print(α_df)
         plot!(plt, α_df.α, α_df.fitness_mean, label = depth, color = colors[depth-depthMin+1])
     end
     return plt
 end
 
-plotActivationFunctionSteepness(df)
+plotActivationFunctionSteepness(df, 3, "Logistic")
+
+function plotMutationSize(df, activationFunction = "Logistic")
+    maxDepth = 9
+    filter =  (df.netDepth .<= maxDepth) .& (df.regulationDepth .<= maxDepth) .& (df.netDepth .>= minDepth) .& (df.netWidth .== 1) .& (df.T .== maximum(df.T)) .& (df.activationFunction .== activationFunction) 
+    groupDF = (groupby(df[filter, :], :μ_size), :fitness=>mean)
+    for netDepth in unique(groupDF.netDepth)
+        i+=1
+        xs = meanFitnessDF[(meanFitnessDF.netDepth .== netDepth), :regulationDepth]
+        ys = meanFitnessDF[(meanFitnessDF.netDepth .== netDepth), :fitness_mean]
+        plot!(xs, ys, label = netDepth,
+                title = "Comparison of mutant effect size and fitness \n for activation function \"$activationFunction\"", 
+                xlabel = "μ Std. Dev.", 
+                ylabel = "Mean Fitness",
+                legend = :bottomright)
+    end
+end
+
+plotMutationSize(df[(df.filename .== "MutationSizeTests2023-11-16T10:56:55.668.jld2"), :])
+
+## Box Plots
 
 ## plotting by depth
 depthSelection = (df.netWidth .== 1) .& (df.T .== maximum(df.T)) .& (df.netDepth .<= maxDepth) .& (df.netDepth .>= minDepth)

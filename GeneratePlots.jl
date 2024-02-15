@@ -1,17 +1,22 @@
 ## This file loads the JLD2 file generated from the networksCompareAdaptation.jl file
 ## and then runs them through some plots :)
 
-using JLD2, StatsPlots, DataFrames
+using JLD2, StatsPlots, DataFrames, LaTeXStrings
 include("Networks.jl")
 
 function loadSimulationResults(path = pwd())
     simulationData = []
     for file in readdir(path)
         if splitext(file)[2] == ".jld2"
-            simulationFile = JLD2.load(string(path, file))["simulationOutputs"]
-            simulationFile.filename = fill(file, length(simulationFile.fitness))
-            push!(simulationData, simulationFile)
-            print("Sucessfully loaded: $file with length $(length(simulationFile.fitness)) entries of $(length(unique(simulationFile[simulationFile.T .== maximum(simulationFile.T), :].replicateID))) replicates \n")
+            try
+                simulationFile = JLD2.load(string(path, file))["simulationOutputs"]
+                simulationFile.filename = fill(file, length(simulationFile.fitness))
+                push!(simulationData, simulationFile)
+                print("Sucessfully loaded: $file with length $(length(simulationFile.fitness)) entries of $(length(unique(simulationFile[simulationFile.T .== maximum(simulationFile.T), :].replicateID))) replicates \n")
+            ## Detecting files that dont have the same structure
+            catch KeyError
+               print("Incompatible file found. $file has not been loaded into the dataset.") 
+            end
         end
     end
     return vcat(simulationData..., cols = :union)
@@ -44,18 +49,20 @@ function plotPleiotropy(df, T, maxDepth, activationFunction = "Logistic", filena
     plt = plot()
     for i in 3:6
         selection = pleiodf[(pleiodf.netDepth .== i) .& (pleiodf.netWidth .== 1) .& (pleiodf.envChallenge .== 1), :]
-        plt = scatter!(selection.pleiotropy, selection.fitness)
+        plt = scatter!(selection.pleiotropy, selection.fitness, label = "Net Depth = $i")
     end
     return plt
 end
 
 function plotRegulationDepth(df, T, maxDepth, activationFunction = "Logistic", filename = "")
     minDepth = 3
+    envChal = 3
+
     for i in 1:length(df.regulationDepth) ## bad code but w/e
         df.regulationDepth[i] = minimum([df.regulationDepth[i], df.netDepth[i]])
     end
 
-    filter = (df.μ_size .== 0.1) .& (df.netDepth .<= maxDepth) .& (df.regulationDepth .<= maxDepth) .& (df.netDepth .>= minDepth) .& (df.netWidth .== 1) .& (df.T .== T) .& (df.activationFunction .== activationFunction) 
+    filter = (df.μ_size .== 0.1) .& (df.envChallenge .== envChal)  .& (df.netDepth .<= maxDepth) .& (df.regulationDepth .<= maxDepth) .& (df.netDepth .>= minDepth) .& (df.netWidth .== 1) .& (df.T .== T) .& (df.activationFunction .== activationFunction) 
     regDF = (groupby(df[filter, :], :regulationDepth), :fitness=>mean)
     outCols = []
     for i in eachindex(regDF[1])
@@ -65,18 +72,21 @@ function plotRegulationDepth(df, T, maxDepth, activationFunction = "Logistic", f
     end
     meanFitnessDF = vcat(outCols...)
     plt = plot()
-    # colors = [RGB(1-((x-minDepth)/maxDepth), 1-((x-minDepth)/maxDepth),1-((x-minDepth)/maxDepth)) for x in minDepth:maxDepth]
-    # print(colors)
+    colors = [RGB(1-(((x-minDepth)/maxDepth)*.8), 1-(((x-minDepth)/maxDepth)*.8),1-(((x-minDepth)/maxDepth)*.8)) for x in minDepth:maxDepth]
+    print(colors)
     i = 0
-    for netDepth in unique(meanFitnessDF.netDepth)
+    for netDepth in [3, 4, 5, 6, 7, 8]
+        Rstring = L"\(R\)"
         i+=1
         xs = meanFitnessDF[(meanFitnessDF.netDepth .== netDepth), :regulationDepth]
         ys = meanFitnessDF[(meanFitnessDF.netDepth .== netDepth), :fitness_mean]
         plot!(xs, ys, label = netDepth,
-                title = "Comparison of regulation depth and fitness \n for activation function \"$activationFunction\"", 
-                xlabel = "Regulation Depth", 
+                title = "Comparison of regulation depth $Rstring and fitness", 
+                xlabel = Rstring, 
                 ylabel = "Mean Fitness",
-                legend = :bottomright)
+                legendtitle = "Genes",
+                legend = :bottomright,
+                c = reverse(colors)[i])
     end
     return plt
 end

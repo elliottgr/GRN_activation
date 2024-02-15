@@ -68,39 +68,7 @@ end
         return OutputDict
     end
 
-    function generateGraph(Data::Tuple)
-        network, netDepth, netWidth, regulationDepth = Data
-        return generateGraph(network, netDepth, netWidth, regulationDepth)
-    end
-
-    function generateGraph(network, netDepth, netWidth, regulationDepth)
-        netDepth, netWidth = netDepth, netWidth
-        g = SimpleWeightedDiGraph()
-        NodeDict = Dict()
-        nodeID = 1
-        ## generating all vertices
-        for i in 1:netDepth
-            for j in 1:netWidth
-                NodeDict[(i,j)] = nodeID
-                nodeID += 1
-                add_vertex!(g)
-            end
-        end
-
-        ## generating all edges
-        for i in 2:netDepth
-            for j in 1:netWidth
-                for k in maximum([1, i-regulationDepth]):i-1
-                    for l in 1:netWidth
-                        add_edge!(g, NodeDict[k,l], NodeDict[i,j], network.Wm[i, j][k, l])
-                    end
-                end
-            end
-        end
-
-        return g
-    end
-
+    include("NetworkGraphFunctions.jl")
 
     function main(filestring)
         dateString = string(filestring, Dates.now(), ".jld2")
